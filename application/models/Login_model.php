@@ -21,6 +21,7 @@ class Login_model extends CI_Model
         $trm_emp_pname = trim($emp_pname);
         // $this->db->where('emp_code', $username);
 		$this->db->where('emp_uname', $username);
+        $this->db->where('emp_status', 'active');
         $user = $this->db->get('emp')->row();
         if ($user && md5($trm_emp_pname) == $user->emp_pname) {
             return $user;

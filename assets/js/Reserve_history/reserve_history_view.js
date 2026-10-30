@@ -3,14 +3,14 @@ $(document).ready(function () {
 	getData();
 	getNightShift();
 	$("#get_date_start").datepicker({
-		orientation:"button",
+		orientation: "button",
 		format: "yyyy-mm-dd",
 		todayHighlight: true,
 		disableTouchKeyboard: true,
 		autoclose: true,
 	});
 	$("#get_date_end").datepicker({
-		orientation:"button",
+		orientation: "button",
 		format: "yyyy-mm-dd",
 		todayHighlight: true,
 		disableTouchKeyboard: true,
@@ -26,35 +26,9 @@ $(document).ready(function () {
 
 var arr_night_shift = [];
 
-// function chkFeature(){
-// 	$.ajax({
-// 		type: "POST",
-// 		url: "Reserve_history/chkFeature",
-// 		success: function(response){
-// 			console.log(response);
-// 			var obj = JSON.parse(response);
+var lang = getCookie("ck_emp_lang");
 
-// 			if (obj.length > 0){
-// 				sessionStorage.setItem('session_feature_set_item_user_cancel', obj[0].feature_set_item_user_cancel);
 
-// 				if (obj[0].feature_set_item_user_cancel === "active"){
-// 					$('.Check-feature-user-cancel').show();
-// 					$('#chk_all').prop('disabled', false);
-					
-// 				}else{
-// 					$('.Check-feature-user-cancel').hide();
-// 					$('#chk_all').prop('disabled', true);
-
-// 				}
-// 			}
-
-// 		//console.log( obj[0].feature_set_item_user_cancel);
-// 		},	
-// 		error: function (error){
-// 			console.error(error);
-// 		},
-// 	});
-// }
 function getCookie(name) {
 	var value = "; " + document.cookie;
 	var parts = value.split("; " + name + "=");
@@ -90,188 +64,20 @@ function getData() {
 	});
 }
 
-// function set_data_in_layout(json_data) {
-// 	const ck_lang = getCookie("ck_emp_lang");
+function formatDateByLang(dateStr) {
+	var date = new Date(dateStr);
+	var day = date.getDate();
+	var year = date.getFullYear();
 
-// 	let waiting = "Waiting Confirm";
-// 	let confirm = "Confirm";
-// 	if (ck_lang == "th") {
-// 		waiting = "รอ Confirm";
-// 		confirm = "จองสำเร็จ";
-// 	} else {
-// 		waiting = "Waiting Confirm";
-// 		confirm = "Confirm";
-// 	}
+	var monthNamesEn = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+		"Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+	var monthNamesTh = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
+		"ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 
-// 	var session_feature_set_item_user_cancel = sessionStorage.getItem('session_feature_set_item_user_cancel');
-// 	var query_next = json_data.query_next;
-// 	var last_reserve_date = "";
+	var month = (lang === 'th') ? monthNamesTh[date.getMonth()] : monthNamesEn[date.getMonth()];
 
-// 	console.log(query_next);
-
-// 	// const trip_out_time = ["05:05", "08:00"];
-
-// 	var tbHistory = $("#tbHistory").DataTable();
-
-// 	tbHistory.clear().draw();
-
-// 	if (json_data.reserve != undefined && json_data.reserve != null) {
-// 		console.log(json_data);
-// 		json_data.reserve.forEach((row, index) => {
-// 			var reserve_id = row.reserve_id;
-// 			var reserve_date = row.reserve_date;
-// 			var reserve_round = row.reserve_round;
-// 			var reserve_time = row.reserve_time;
-// 			var reserve_trip = row.reserve_trip;
-// 			var reserve_shift = row.reserve_shift;
-// 			var reserve_status = row.reserve_status;
-// 			var attendance_time = row.attendance_time;
-
-// 			chk_box = "";
-// 			//if (session_feature_set_item_user_cancel === "active"){
-
-// 			if (reserve_date < json_data.curr_date) {
-// 				chk_box =
-// 					'<input name="chk_reserve_' +
-// 					(index + 1) +
-// 					'" id="chk_reserve_' +
-// 					(index + 1) +
-// 					'" type="checkbox" value="' +
-// 					reserve_id +
-// 					'" disabled/>';
-// 			} else if (reserve_date == json_data.curr_date) {
-			
-// 				chk_box =
-// 					'<input name="chk_reserve_' +
-// 					(index + 1) +
-// 					'" id="chk_reserve_' +
-// 					(index + 1) +
-// 					'" type="checkbox" value="' +
-// 					reserve_id +
-// 						'"/>';
-
-// 			} else {
-// 				chk_box =
-// 					'<input name="chk_reserve_' +
-// 					(index + 1) +
-// 					'" id="chk_reserve_' +
-// 					(index + 1) +
-// 					'" type="checkbox" value="' +
-// 					reserve_id +
-// 					'"/>';
-// 			}
-// 			//}
-
-
-// 			//index
-// 			//reserve_date
-// 			//reserve_time
-
-// 			text_info = "";
-// 			if (reserve_trip == "in") {
-// 				text_info = '<span class="text-info">In</span>';
-// 			} else if (reserve_trip == "out") {
-// 				text_info = '<span class="text-warning">Out</span>';
-// 			}
-
-// 			btn_info = "";
-// 			if (reserve_status == "Waiting") {
-// 				btn_info =
-// 					'<a type="button" class="btn-sm btn-warning" style="color:white;" onclick="infoVal(\'' +
-// 					reserve_id +
-// 					"', '" +
-// 					reserve_shift +
-// 					"')\">";
-// 				btn_info += waiting;
-// 				btn_info += "</a>";
-// 			} else if (reserve_status == "Submitted") {
-// 				btn_info =
-// 					'<a type="button" class="btn-sm btn-success"" style="color:white;" role="button"  aria-pressed="true" onclick="infoVal(\'' +
-// 					reserve_id +
-// 					"','"+
-// 					reserve_shift +
-// 					"')\" >";
-// 				btn_info += confirm;
-// 				btn_info += "</a>";
-// 			} else if (reserve_status == "Arranged") {
-// 				btn_info =
-// 					'<a class="bg-secondary btn-sm btn-success" style="color:white;" role="button"  aria-pressed="true" onclick="infoVal(\'' +
-// 					reserve_id +
-// 					"','"+
-// 					reserve_shift +
-// 					"')\" >";
-// 				btn_info += "Arranged";
-// 				btn_info += "</a>";
-// 			} else if (reserve_status == "Cancelled") {
-// 				btn_info =
-// 					'<a class=" bg-danger btn-sm btn-danger" style="color:white;" role="button"  aria-pressed="true" onclick="infoVal(\'' +
-// 					reserve_id +
-// 					"','"+
-// 					reserve_shift +
-// 					"')\" >";
-// 				btn_info += "ยกเลิก";
-// 				btn_info += "</a>";
-// 			} else if (reserve_status == "Pending") {
-// 				btn_info =
-// 					'<a class="bg-warning btn-sm btn-warning" style="color:white;" role="button"  aria-pressed="true" onclick="infoVal(\'' +
-// 					reserve_id +
-// 					"','"+
-// 					reserve_shift +					
-// 					"')\">";
-// 				btn_info += "Pending";
-// 				btn_info += "</a>";
-// 			} else if (reserve_status == "Approved") {
-// 				btn_info =
-// 					'<a class="bg-warning btn-sm btn-warning" style="color:white;" role="button"  aria-pressed="true" onclick="infoVal(\'' +
-// 					reserve_id +
-// 					"','"+
-// 					reserve_shift +					
-// 					"')\" >";
-// 				btn_info += "Approved";
-// 				btn_info += "</a>";
-// 			} else if (reserve_status == "Disapproved") {
-// 				btn_info =
-// 					'<a class="bg-danger btn-sm btn-danger" style="color:white;" role="button"  aria-pressed="true" onclick="infoVal(\'' +
-// 					reserve_id +
-// 					"','"+
-// 					reserve_shift +					
-// 					"')\">";
-// 				btn_info += "GA disapproved";
-// 				btn_info += "</a>";
-// 			} else if (reserve_status == "Pending_cancel") {
-// 				btn_info =
-// 					'<a class="bg-warning btn-sm btn-warning" style="color:white;" role="button"  aria-pressed="true" onclick="infoVal(\'' +
-// 					reserve_id +
-// 					"','"+
-// 					reserve_shift +					
-// 					"')\" >";
-// 				btn_info += "รออนุมัติ การยกเลิก";
-// 				btn_info += "</a>";
-// 			}
-
-// 			//attendance time
-
-// 			tbHistory.row
-// 				.add([
-// 					chk_box,
-// 					reserve_date,
-// 					reserve_time,
-// 					text_info,
-// 					btn_info,
-// 					attendance_time,
-// 				])
-// 				.draw();
-
-// 			last_reserve_date = reserve_date;
-// 		});
-// 	}
-
-// 	max_line = json_data.reserve.length;
-
-// 	document.getElementById("hdnMaxLine").value = max_line;
-// 	document.getElementById("get_date_start").value = json_data.curr_date;
-// 	document.getElementById("get_date_end").value = last_reserve_date;
-// }
+	return day + " " + month + " " + year;
+}
 
 function set_data_in_layout(json_data) {
 	const ck_lang = getCookie("ck_emp_lang");
@@ -306,7 +112,8 @@ function set_data_in_layout(json_data) {
 		json_data.reserve.forEach((row, index) => {
 			var reserve_id = row.reserve_id;
 			var reserve_route = row.route;
-			var reserve_date = row.reserve_date;
+			let reserve_date = formatDateByLang(row.reserve_date); // แปลงวันที่
+			let old_format_reserve_date = row.reserve_date; // วันที่แบบดิบ
 			var reserve_round = row.reserve_round;
 			var reserve_time = row.reserve_time;
 			var reserve_trip = row.reserve_trip;
@@ -316,9 +123,9 @@ function set_data_in_layout(json_data) {
 			chk_box = "";
 
 			const today = new Date();
-			const year  = today.getFullYear();
+			const year = today.getFullYear();
 			const month = String(today.getMonth() + 1).padStart(2, '0'); // เดือนเริ่มที่ 0 ต้อง +1
-			const day   = String(today.getDate()).padStart(2, '0');
+			const day = String(today.getDate()).padStart(2, '0');
 			const currentDate = `${year}-${month}-${day}`;
 			console.log("Current Date : " + currentDate);
 
@@ -327,9 +134,9 @@ function set_data_in_layout(json_data) {
 			tomorrow.setDate(today.getDate() + 1);
 
 			// จัดรูปแบบวันที่ใหม่
-			const nextyear  = tomorrow.getFullYear();
+			const nextyear = tomorrow.getFullYear();
 			const nextmonth = String(tomorrow.getMonth() + 1).padStart(2, '0'); // เดือนเริ่มที่ 0
-			const nextday   = String(tomorrow.getDate()).padStart(2, '0');
+			const nextday = String(tomorrow.getDate()).padStart(2, '0');
 
 			const nextDate = `${nextyear}-${nextmonth}-${nextday}`;
 			console.log("Tomorrow's Date: " + nextDate);
@@ -345,10 +152,10 @@ function set_data_in_layout(json_data) {
 					(index + 1) +
 					'" type="checkbox" value="' +
 					reserve_id +
-					'" disabled/>';
+					'"  />';
 			} else if (reserve_date == json_data.curr_date) {
-			
-				if(reserve_status == "Submitted") { 
+
+				if (reserve_status == "Submitted") {
 					chk_box =
 						'<input name="chk_reserve_' +
 						(index + 1) +
@@ -356,8 +163,8 @@ function set_data_in_layout(json_data) {
 						(index + 1) +
 						'" type="checkbox" value="' +
 						reserve_id +
-						'" disabled/>';
-				} else { 
+						'" />';
+				} else {
 					chk_box =
 						'<input name="chk_reserve_' +
 						(index + 1) +
@@ -365,12 +172,12 @@ function set_data_in_layout(json_data) {
 						(index + 1) +
 						'" type="checkbox" value="' +
 						reserve_id +
-							'"/>';
+						'"/>';
 				}
-				
+
 			} else if (reserve_date == nextDate) {
-			
-				if(reserve_status == "Submitted") { 
+
+				if (reserve_status == "Submitted") {
 					chk_box =
 						'<input name="chk_reserve_' +
 						(index + 1) +
@@ -378,8 +185,8 @@ function set_data_in_layout(json_data) {
 						(index + 1) +
 						'" type="checkbox" value="' +
 						reserve_id +
-						'" disabled/>';
-				} else { 
+						'" />';
+				} else {
 					chk_box =
 						'<input name="chk_reserve_' +
 						(index + 1) +
@@ -387,9 +194,9 @@ function set_data_in_layout(json_data) {
 						(index + 1) +
 						'" type="checkbox" value="' +
 						reserve_id +
-							'"/>';
+						'"/>';
 				}
-				
+
 			} else {
 				chk_box =
 					'<input name="chk_reserve_' +
@@ -409,72 +216,57 @@ function set_data_in_layout(json_data) {
 
 			text_info = "";
 			if (reserve_trip == "in") {
-				text_info = '<span class="text-info">In</span>';
+				text_info = lang == 'th' ? '<span class="text-info">รับเข้า</span>' : '<span class="text-info">In</span>';
 			} else if (reserve_trip == "out") {
-				text_info = '<span class="text-warning">Out</span>';
+				text_info = lang == 'th' ? '<span class="text-warning">รับออก</span>' : '<span class="text-warning">Out</span>';
 			}
-			var fixedBtnStyle = 'color:white; width:70px; height:35px; font-size:10px; text-align:center; padding:0 5px;';
 
-			btn_info = "";
-			if (reserve_status == "Waiting") {
-				btn_info =
-					'<button type="button" class="btn btn-sm btn-warning" style="' + fixedBtnStyle + '" aria-pressed="true" onclick="infoVal(\'' +
-					reserve_id +
-					'\')">';
-				btn_info += waiting;
-				btn_info += '</button>';
-			} else if (reserve_status == "Submitted") {
-				btn_info +=
-					'<button type="button" class="btn btn-sm btn-success" style="' + fixedBtnStyle + '" aria-pressed="true" onclick="infoVal(\'' +
-					reserve_id +
-					'\')">';
-				btn_info += confirm;
-				btn_info += '</button>';
-				btn_info += '</div>';
-			} 
-			else if (reserve_status == "Arranged") {
-				btn_info =
-					'<a class="bg-secondary btn-sm btn-success" style="color:white;" role="button"  aria-pressed="true" onclick="infoVal(\'' +
-					reserve_id +
-					"')\" >";
-				btn_info += "Arranged";
-				btn_info += "</a>";
-			} else if (reserve_status == "Cancelled") {
-				btn_info =
-					'<a class=" bg-danger btn-sm btn-danger" style="color:white;" role="button"  aria-pressed="true" onclick="infoVal(\'' +
-					reserve_id +
-					"')\" >";
-				btn_info += "ยกเลิก";
-				btn_info += "</a>";
-			} else if (reserve_status == "Pending") {
-				btn_info =
-					'<a class="bg-warning btn-sm btn-warning" style="color:white;" role="button"  aria-pressed="true" onclick="infoVal(\'' +
-					reserve_id +
-					"')\">";
-				btn_info += "Pending";
-				btn_info += "</a>";
-			} else if (reserve_status == "Approved") {
-				btn_info =
-					'<a class="bg-warning btn-sm btn-warning" style="color:white;" role="button"  aria-pressed="true" onclick="infoVal(\'' +
-					reserve_id +
-					"')\" >";
-				btn_info += "Approved";
-				btn_info += "</a>";
-			} else if (reserve_status == "Disapproved") {
-				btn_info =
-					'<a class="bg-danger btn-sm btn-danger" style="color:white;" role="button"  aria-pressed="true" onclick="infoVal(\'' +
-					reserve_id +
-					"')\">";
-				btn_info += "GA disapproved";
-				btn_info += "</a>";
-			} else if (reserve_status == "Pending_cancel") {
-				btn_info =
-					'<button type="button" class="btn btn-sm btn-warning" style="' + fixedBtnStyle + '" aria-pressed="true" onclick="infoVal(\'' +
-					reserve_id +
-					'\')">';
-				btn_info += waiting_cancel;
-				btn_info += '</button>';
+
+			const statusMap = {
+				"Waiting": {
+					th: "รออนุมัติ",
+					en: "Waiting",
+					class: "btn-warning",
+					icon: "bx-time"
+				},
+				"Submitted": {
+					th: "อนุมัติ",
+					en: "Submitted",
+					class: "btn-success",
+					icon: "bx-check-circle"
+				},
+				"Cancelled": {
+					th: "ยกเลิก",
+					en: "Cancelled",
+					class: "btn-danger",
+					icon: "bx-x-circle"
+				},
+				"Pending_cancel": {
+					th: "รออนุมัติยกเลิก",
+					en: "Pending Cancel",
+					class: "btn-warning",
+					icon: "bx-error"
+				}
+			};
+
+			let btn_info = "";
+
+			if (statusMap[reserve_status]) {
+				const item = statusMap[reserve_status];
+				const text = (lang === "th") ? item.th : item.en;
+
+				btn_info = `
+    <button
+      type="button"
+      class="btn ${item.class} btn-sm px-3 py-1 rounded-pill shadow-sm d-inline-flex align-items-center gap-1"
+      style="color:white; font-weight:600;"
+      onclick="infoVal('${reserve_id}')"
+    >
+      ${text}
+    </button>
+  `;
 			}
+
 
 			//attendance time
 
@@ -490,7 +282,7 @@ function set_data_in_layout(json_data) {
 				])
 				.draw();
 
-			last_reserve_date = reserve_date;
+			last_reserve_date = old_format_reserve_date;
 		});
 	}
 
@@ -509,7 +301,7 @@ function inArray(needle, haystack) {
 	return false;
 }
 
-function infoVal(reserve_id,reserve_shift) {
+function infoVal(reserve_id, reserve_shift) {
 	console.log(reserve_id);
 	sessionStorage.getItem('session_feature_set_item_user_cancel');
 	sessionStorage.setItem("reserve_id", reserve_id);
@@ -559,7 +351,7 @@ function cancelSelect() {
 
 	Swal.fire({
 		title: "Are you sure?",
-		text:  text_confirm,
+		text: text_confirm,
 		icon: "warning",
 		showCancelButton: true,
 		confirmButtonColor: "#DD6B55",
@@ -610,11 +402,11 @@ function cancelSelect() {
 						Swal.fire(
 							"Warning",
 							"พบ" +
-								response.chk_error_time +
-								"รายการ วันที่ " +
-								response.curr_date +
-								"ไม่สามารถยกเลิกได้ เนื่องจากเลยเวลาที่บริษัทกำหนด รายการอื่นหลังจากวันนี้ทำการยกเลิกสำเร็จ",
-								"warning"
+							response.chk_error_time +
+							"รายการ วันที่ " +
+							response.curr_date +
+							"ไม่สามารถยกเลิกได้ เนื่องจากเลยเวลาที่บริษัทกำหนด รายการอื่นหลังจากวันนี้ทำการยกเลิกสำเร็จ",
+							"warning"
 						);
 					}
 				},
@@ -703,12 +495,12 @@ function chkAll() {
 	// }
 
 	var tbHistory = $('#tbHistory').DataTable();
-	tbHistory.rows().every(function() {
+	tbHistory.rows().every(function () {
 		var row = this.node();
 		var checkbox = $('input[type="checkbox"]', row)[0];
 		// Check if checkbox is not disabled and apply the "select all" checkbox state
-        if (checkbox && !checkbox.disabled) {
-            checkbox.checked = chk_all.checked; // Set the checkbox checked state based on "select all" checkbox
-        }
-	  });
+		if (checkbox && !checkbox.disabled) {
+			checkbox.checked = chk_all.checked; // Set the checkbox checked state based on "select all" checkbox
+		}
+	});
 }

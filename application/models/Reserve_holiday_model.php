@@ -403,7 +403,9 @@ class Reserve_holiday_model extends CI_Model
 
                 if ($feature_set_item['feature_set_item_cut_off_time'] == 'active' && $this->check_cut_off_time($arr_cut_of_time, $curr_time)) {
 
-                    return ['data' => $this->do_reservation($reserve_date, $reserve_data, $emp_id, $emp_com_id, $shift_id, $shift_start, $shift_end, $shift_type, $this->save_status_waiting, $shift_round_start, $shift_round_end)];
+                return ['data' => "ng_cut_of_time"];
+
+                    //return ['data' => $this->do_reservation($reserve_date, $reserve_data, $emp_id, $emp_com_id, $shift_id, $shift_start, $shift_end, $shift_type, $this->save_status_waiting, $shift_round_start, $shift_round_end)];
 
                 } else {
 

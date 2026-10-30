@@ -33,7 +33,8 @@ class Comment_history extends Authenticated_controller
         //get menu
         $this->load->view('template/header_view');
         $this->load->view('Comment_history/comment_history_view_js');
-        $this->load->view('Comment_history/comment_history_view');
+        //$this->load->view('Comment_history/comment_history_view');
+        $this->load->view('Comment_history/comment_history_view_line_OA');
         $this->load->view('template/footer_view');
     }
     public function get_data()

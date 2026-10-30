@@ -60,7 +60,8 @@ class Reserve_history_model extends CI_Model
                                AND attendance.attendance_trip_time = reserve.reserve_time 
                                AND attendance.attendance_trip = reserve.reserve_trip', 'left')
             ->where('reserve_mem_id', $ck_emp_id)
-            ->where('reserve_date >=', $curr_date)
+           ->where('reserve_date >=', $curr_date)
+            ->where('reserve_status != ', 'Cancelled')
             ->group_by(['reserve_id', 'reserve_date', 'reserve_round', 'reserve_time', 'reserve_trip', 'reserve_shift', 'reserve_status'])
             ->order_by('reserve_date', 'ASC')
             ->order_by('reserve_time', 'ASC');

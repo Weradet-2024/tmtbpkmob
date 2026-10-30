@@ -112,7 +112,8 @@ class Setting extends Authenticated_controller
     public function ud_pw()
     {
         if ($this->session->has_userdata("emp_id")) {
-            $emp_id = $this->input->post("emp_id");
+            //$emp_id = $this->input->post("emp_id");
+            $emp_id = $this->session->userdata('emp_id');
             $emp_pname = md5($this->input->post('emp_pname'));
             try {
                 $status = $this->setting->update_pw($emp_id, $emp_pname);

@@ -48,16 +48,17 @@ class Reserve_ad extends Authenticated_controller
         $trip = $this->input->post('reserve_trip');
         $ck_emp_id = $this->session->userdata('emp_id');
         $ck_emp_plant = $this->session->userdata('emp_plant');
+        $shift = $this->input->post("shift");
         $obj_emp_com_id = get_comopany_by_userid($ck_emp_id);
         $ck_emp_com_id = $obj_emp_com_id->emp_com_id;
-        $data = $this->ram->get_time_data_by_trip($trip, $ck_emp_com_id, $ck_emp_plant);
+        $data = $this->ram->get_time_data_by_trip($trip, $ck_emp_com_id, $ck_emp_plant, $shift);
         $response["data"] = $data;
         echo json_encode($response, JSON_UNESCAPED_UNICODE);
     }
     public function chk_trip()
     {
         $response = [];
-        $trip = $this->input->post('trip');
+        $trip = $this->input->post('reserve_trip');
         $ck_emp_id = $this->session->userdata('emp_id');
         $obj_emp_com_id = get_comopany_by_userid($ck_emp_id);
         $ck_emp_com_id = $obj_emp_com_id->emp_com_id;
@@ -117,7 +118,6 @@ class Reserve_ad extends Authenticated_controller
         $reserve_shift = ($reserve_data['reserve_trip'] != "in_out")
             ? $this->ram->get_shift_id_by_time($reserve_data['reserve_time'], $reserve_data['reserve_trip'])
             : $reserve_data['reserve_time'];
-        
 
         // Check holiday or duplicated data
         if (
@@ -134,6 +134,15 @@ class Reserve_ad extends Authenticated_controller
         } else {
             echo json_encode($this->ram->save_reservation($reserve_data, $ck_emp_id, $ck_emp_com_id, $ck_emp_plant), JSON_UNESCAPED_UNICODE);
         }
+    }
+    public function get_reserve_setting(){
+        $result = $this->ram->get_reserve_setting();
+        echo json_encode($result);
+    }     
+    public function get_plant(){
+        $plant_value = $this->ram->get_plant();
+        $response = ['plant' => $plant_value];
+        echo json_encode($response);
     }
 
 }

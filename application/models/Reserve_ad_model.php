@@ -12,7 +12,6 @@ class Reserve_ad_model extends CI_Model
     private $status_waiting_th = "รออนุมัติจาก GA";
     private $status_pending_cancel_th = "รออนุมัติยกเลิกจาก GA";
     private $status_cancel_th = "ยกเลิก";
-
     private $status_complete_en = "Success";
     private $status_waiting_en = "Waiting to GA";
     private $status_pending_cancel_en = "Pending Cancel to GA";
@@ -24,7 +23,7 @@ class Reserve_ad_model extends CI_Model
 
     private function get_cut_of_time_data($curr_date, $plant_id)
     {
-        $query = $this->db->get_where('close_time', array('close_time_date' => $curr_date, 'close_time_plant_id' => $plant_id, 'close_time_status' => 'active'))->result_array();
+        $query = $this->db->get_where('close_time', array('close_time_date' => $curr_date, 'close_time_plant_id' => $plant_id))->result_array();
         return !empty($query) ? $query : null;
     }
 
@@ -77,6 +76,8 @@ class Reserve_ad_model extends CI_Model
     {
         $reservation = $this->get_reservation($emp_id, 'out', $reserve_date);
         $new_reserve_date = ($shift_type == "night") ? $this->get_next_day($reserve_date) : $reserve_date;
+
+
         if (!$reservation) {
 
             return $this->save_data_reservation(
@@ -136,8 +137,7 @@ class Reserve_ad_model extends CI_Model
         // Return both results
         return [
             'reserve_date' => $reserve_date,
-            // 'trip' => "two-way",
-            'trip' => "Round-trip",
+            'trip' => "two-way",
             'status_in' => $result_in['status'],
             'status_out' => $result_out['status'],
             'status' => $result_in['status']
@@ -179,35 +179,41 @@ class Reserve_ad_model extends CI_Model
     {
         parent::__construct();
         $this->save_status_success = "Submitted";
-        $this->save_status_waiting = "Waiting";
+        $this->save_status_waiting = "Submitted";
         //Helper function => helper/utility_helper.php
+    }
+
+    public function get_plant()
+    {
+        return $this->session->userdata('emp_plant');
     }
 
     public function chkFeature_ga_approval($ck_emp_plant)
     {
         try {
-            // Check Feature Plant GA need approved before 
+            // ค้นหาข้อมูลจากฐานข้อมูล
             $this->db->where('feature_set_item_plant_id', $ck_emp_plant);
             $sql = $this->db->get('feature_set_item')->result_array();
 
-            // 
+            // ตรวจสอบว่ามีข้อมูลหรือไม่
             if (!empty($sql) && isset($sql[0]['feature_set_item_ga_approval'])) {
                 if ($sql[0]['feature_set_item_ga_approval'] === "active") {
                     $this->save_status_success = "Submitted";
-                    $this->save_status_waiting = "Waiting";
+                    $this->save_status_waiting = "Submitted";
                 } else {
                     $this->save_status_success = "Submitted";
-                    $this->save_status_waiting = "Waiting";
+                    $this->save_status_waiting = "Submitted";
                 }
             } else {
                 $this->save_status_success = "Submitted";
-                $this->save_status_waiting = "Waiting";
+                $this->save_status_waiting = "Submitted";
             }
 
         } catch (Exception $e) {
             // กรณีเกิดข้อผิดพลาด ให้บันทึก Log และกำหนดค่าเริ่มต้น
             log_message('error', 'เกิดข้อผิดพลาดในการ Query: ' . $e->getMessage());
         }
+
 
     }
 
@@ -216,7 +222,7 @@ class Reserve_ad_model extends CI_Model
         $arr_emp = $this->db->get_where('emp', ['emp_id' => $ck_emp_id])->result_array();
         return !empty($arr_emp) ? $arr_emp[0]["emp_name"] . " " . $arr_emp[0]["emp_lname"] : "";
     }
-    public function get_time_data_by_trip($trip, $com_id, $emp_plant)
+    public function get_time_data_by_trip($trip, $com_id, $emp_plant, $shift)
     {
 
         $arr_result = [];
@@ -225,12 +231,14 @@ class Reserve_ad_model extends CI_Model
             // Get distinct shift_start
             $this->db->distinct()->select('shift_start')->where('shift_com_id', $com_id);
             $this->db->where('shift_plant_id', $emp_plant);
+            $this->db->where('shift_type', $shift);
             $this->db->where('shift_status', 'active');
             $query_start = $this->db->get('shift')->result();
 
             // Get distinct shift_end
-            $this->db->distinct()->select('shift_end, shift_id')->where('shift_com_id', $com_id);
+            $this->db->distinct()->select('shift_end')->where('shift_com_id', $com_id);
             $this->db->where('shift_plant_id', $emp_plant);
+            $this->db->where('shift_type', $shift);
             $this->db->where('shift_status', 'active');
             $query_end = $this->db->get('shift')->result();
 
@@ -238,26 +246,27 @@ class Reserve_ad_model extends CI_Model
             foreach ($query_start as $rs) {
                 $arr_result[] = [
                     'shift_value' => 'in ' . $rs->shift_start,
-                    'shift_text' => 'Trip in ' . $rs->shift_start
-                    // 'shift_text' => 'รับเข้า ' . $rs->shift_start
+                    'shift_text' => 'รับเข้า ' . $rs->shift_start,
+                    'shift_text_en' => 'In ' . $rs->shift_start,
 
                 ];
             }
             foreach ($query_end as $rs) {
                 $arr_result[] = [
-                    'shift_value' => 'out ' . $rs->shift_end . '-' . $rs->shift_id,
-                    'shift_text' => 'Trip out ' . $rs->shift_end
-                    // 'shift_text' => 'รับออก ' . $rs->shift_end
+                    'shift_value' => 'out ' . $rs->shift_end,
+                    'shift_text' => 'รับออก ' . $rs->shift_end,
+                    'shift_text_en' => 'Out ' . $rs->shift_end,
                 ];
             }
         } else {
             // For two-way trips
+            $this->db->where('shift_type', $shift);
             $query = $this->db->get_where('shift', ['shift_com_id' => $com_id, 'shift_plant_id' => $emp_plant, 'shift_status' => 'active'])->result();
             foreach ($query as $rs) {
                 $arr_result[] = [
                     'shift_value' => 'in_out ' . $rs->shift_id,
-                    'shift_text' => 'Round-trip ' . $rs->shift_start . ' - ' . $rs->shift_end
-                    // 'shift_text' => 'ไป - กลับ ' . $rs->shift_start . ' - ' . $rs->shift_end
+                    'shift_text' => 'ไป - กลับ ' . $rs->shift_start . ' - ' . $rs->shift_end,
+                    'shift_text_en' => 'Round trip ' . $rs->shift_start . ' - ' . $rs->shift_end
                 ];
             }
         }
@@ -265,97 +274,79 @@ class Reserve_ad_model extends CI_Model
         return $arr_result;
     }
 
-
     public function get_route_and_point_by_trip($trip, $ck_emp_com_id, $ck_emp_id, $emp_plant)
-	{
-    // Get employee data
-    $emp_data = $this->db->get_where('emp', [
-        'emp_id' => $ck_emp_id,
-        'emp_com_id' => $ck_emp_com_id
-    ])->row();
-
-    if (!$emp_data) {
-        return [];
-    }
-
-    // -------------------------
-    // ROUTE (INBOUND)
-    // -------------------------
-    $this->db->select('*');
-    $this->db->from('route');
-    $this->db->where('route_status', 'active');
-    $this->db->where('route_com_id', $emp_data->emp_com_id);
-    $this->db->where('route_vendor_id !=', 0);
-    $this->db->group_start();
-    $this->db->where('route_plant', $emp_plant);
-    $this->db->or_where("CHARINDEX(',' + CAST({$emp_plant} AS VARCHAR) + ',', ',' + route_plant_member + ',') > 0", null, false);
-    $this->db->group_end();
-    $this->db->order_by('route_code');
-    $query_route = $this->db->get()->result();
-
-    $this->db->order_by('pickup_code', 'asc');
-    $query_pick = $this->db->get_where('pickup', [
-        'pickup_com_id' => $emp_data->emp_com_id,
-        'pickup_route_id' => $emp_data->emp_route_id,
-        'pickup_status' => 'active'
-    ])->result();
-
-    // -------------------------
-    // ROUTE OUT (OUTBOUND)
-    // -------------------------
-    $this->db->select('*');
-    $this->db->from('route_out');
-    $this->db->where('route_out_status', 'active');
-    $this->db->where('route_out_com_id', $emp_data->emp_com_id);
-    // $this->db->where('route_out_vendor_id !=', 0);
-    $this->db->group_start();
-    $this->db->where('route_out_plant', $emp_plant);
-    $this->db->or_where("CHARINDEX(',' + CAST({$emp_plant} AS VARCHAR) + ',', ',' + route_out_plant_member + ',') > 0", null, false);
-    $this->db->group_end();
-    $this->db->order_by('route_out_plant, route_out_code');
-    $query_route_out = $this->db->get()->result();
-
-    $this->db->order_by('dropoff_code', 'asc');
-    $query_drop = $this->db->get_where('dropoff', [
-        'dropoff_com_id' => $emp_data->emp_com_id,
-        'dropoff_route_id' => $emp_data->emp_route_out_id,
-        'dropoff_status' => 'active'
-    ])->result();
-
-    // -------------------------
-    // RETURN DATA
-    // -------------------------
-    return [
-        'emp_route_id' => $emp_data->emp_route_id,
-        'emp_pick_id' => $emp_data->emp_pick_id,
-        'emp_route_out_id' => $emp_data->emp_route_out_id,
-        'emp_drop_id' => $emp_data->emp_drop_id,
-        'route' => $query_route,
-        'pickup' => $query_pick,
-        'route_out' => $query_route_out,
-        'dropoff' => $query_drop
-    ];
-}
-
-
-    public function get_point_data_by_id($ck_emp_com_id, $reserve_route)
     {
-        $this->db->order_by('pickup_item', 'asc');
-        $query = $this->db->get_where('pickup', [
-            'pickup_com_id' => $ck_emp_com_id,
-            'pickup_route_id' => $reserve_route,
+        // Get employee data
+        $emp_data = $this->db->get_where('emp', [
+            'emp_id' => $ck_emp_id,
+            'emp_com_id' => $ck_emp_com_id
+        ])->row();
+
+        if (!$emp_data) {
+            return [];
+        }
+
+        // Set route and pickup/dropoff queries
+        $this->db->select('*');
+        $this->db->from('route_zone'); // ระบุฐานข้อมูลและตาราง
+        $this->db->where('route_zone_status', 'active');
+        $this->db->where('route_zone_com_id', $emp_data->emp_com_id);
+        // กำหนดเงื่อนไขแบบ OR ด้วยวงเล็บ
+        $this->db->group_start();
+        $this->db->where('route_zone_plant_id', $emp_plant);
+        $this->db->or_where("',' + route_zone_plant_member + ',' LIKE '%,$emp_plant,%'");
+        $this->db->group_end();
+        $this->db->order_by('route_zone_plant_id, route_zone_code');
+        $query_route = $this->db->get()->result();
+
+        $this->db->order_by('pickup_item', 'ASC');
+        $query_pick = $this->db->get_where('pickup', [
+            'pickup_com_id' => $emp_data->emp_com_id,
+            'pickup_route_zone_id' => $emp_data->emp_route_zone_id,
             'pickup_status' => 'active'
         ])->result();
+
+        // Set route and pickup/dropoff queries
+        $this->db->select('*');
+        $this->db->from('route_zone_out'); // ระบุฐานข้อมูลและตาราง
+        $this->db->where('route_zone_out_status', 'active');
+        $this->db->where('route_zone_out_com_id', $emp_data->emp_com_id);
+        // กำหนดเงื่อนไขแบบ OR ด้วยวงเล็บ
+        $this->db->group_start();
+        $this->db->where('route_zone_out_plant_id', $emp_plant);
+        $this->db->or_where("',' + route_zone_out_plant_member + ',' LIKE '%,$emp_plant,%'");
+        $this->db->group_end();
+        $this->db->order_by('route_zone_out_plant_id, route_zone_out_code');
+        $query_route_out = $this->db->get()->result();
+
+        $this->db->order_by('dropoff_item', 'ASC');
+        $query_drop = $this->db->get_where('dropoff', [
+            'dropoff_com_id' => $emp_data->emp_com_id,
+            'dropoff_route_zone_out_id' => $emp_data->emp_route_zone_out_id,
+            'dropoff_status' => 'active'
+        ])->result();
+
+        // Set data to send to user
+        return [
+            'emp_route_zone_id' => $emp_data->emp_route_zone_id,
+            'emp_pick_id' => $emp_data->emp_pick_id,
+            'emp_route_zone_out_id' => $emp_data->emp_route_zone_out_id,
+            'emp_drop_id' => $emp_data->emp_drop_id,
+            'route_zone' => $query_route,
+            'pickup' => $query_pick,
+            'route_zone_out' => $query_route_out,
+            'dropoff' => $query_drop
+        ];
+
+    }
+    public function get_point_data_by_id($ck_emp_com_id, $reserve_route)
+    {
+        $query = $this->db->get_where('pickup', ['pickup_com_id' => $ck_emp_com_id, 'pickup_route_zone_id' => $reserve_route, 'pickup_status' => 'active'])->result();
         return $query;
     }
     public function get_point_out_data_by_id($ck_emp_com_id, $reserve_route_out)
     {
-        $this->db->order_by('dropoff_item', 'asc');
-        $query = $this->db->get_where('dropoff', [
-            'dropoff_com_id' => $ck_emp_com_id,
-            'dropoff_route_id' => $reserve_route_out,
-            'dropoff_status' => 'active'
-        ])->result();
+        $query = $this->db->get_where('dropoff', ['dropoff_com_id' => $ck_emp_com_id, 'dropoff_route_zone_out_id' => $reserve_route_out, 'dropoff_status' => 'active'])->result();
         return $query;
     }
     public function get_shift_id_by_time($reserve_time, $reserve_trip)
@@ -387,10 +378,8 @@ class Reserve_ad_model extends CI_Model
         $this->db->select('*')->where('shift_id', $reserve_shift);
         $shift = $this->db->get('shift')->row_array();
 
-        //$shift_type = $shift["shift_type"];
-        // $new_departure_date = ($shift_type == "night")
-        //     ? date_cover(date('Y-m-d', strtotime("+1 day", strtotime($reserve_date_end))))
-        //     : $reserve_date_end;
+        $shift_type = $shift["shift_type"];
+
 
         $this->db->select('*')
             ->from('reserve')
@@ -418,195 +407,219 @@ class Reserve_ad_model extends CI_Model
         }
     }
 
+    public function get_next_weekdate($reserve_date, $com_id, $ck_emp_plant)
+    {
+        // Get the next weekday
+        $this->db->limit(1);
+        $this->db->select('*');
+        $this->db->from('calendar');
+        $this->db->where('calendar_date > ', $reserve_date);
+        $this->db->where('calendar_type', 'weekday');
+
+        $result = $this->db->get()->row_array();
+
+        // Check if result is null
+        return !empty($result) ? $result['calendar_date'] : null;
+
+    }
+
+
     public function save_reservation($reserve_data, $emp_id, $emp_com_id, $ck_emp_plant)
     {
         $begin = strtotime($reserve_data['reserve_date']);
         $end = strtotime($reserve_data['reserve_date_end']);
+        //current date and time
+        $curr_date = date('Y-m-d');
+        $curr_time = date('H:i');
+        $curr_date_name = date("l");
+        //shift data
+        $shift_id = '';
+        $shift_start = '';
+        $shift_end = '';
+        //result
+        $arr_result = [];
 
-        $this->db->select('COUNT(calendar_type) as count_days')
-            ->from('calendar')
-            ->where('calendar_plant_id', $emp_com_id)
-            ->where('calendar_com_id', $ck_emp_plant)
-            ->where('calendar_date >=', $reserve_data['reserve_date'])
-            ->where('calendar_date <=', $reserve_data['reserve_date_end']);
+        //check data reserve status when GA approval is active
+        $this->chkFeature_ga_approval($ck_emp_plant);
 
-        $query = $this->db->get();
-        $result = $query->row_array();  // ✅ ดึงแถวเดียวแบบ associative array
-        $count_days = (int) $result['count_days'];  // ✅ แปลงให้ชัวร์ว่าเป็นตัวเลข
+        //get time of shift data to save database
+        //trip in out => time (08:00, 17:00)
+        //two way => shift_id
 
-        $tomorrow = date('Y-m-d', strtotime('+1 day'));
+        switch ($reserve_data['reserve_trip']) {
+            case "in_out":
+                // Get $shift start and end by shift id //reserve_data['reserve_time'] = shift_id
+                $arr_shift = $this->get_shift_data($reserve_data['reserve_time']);
+                if (!$arr_shift) {
+                    return false;
+                }
+                $shift_id = $arr_shift['shift_id'];
+                $shift_start = $arr_shift['shift_start'];
+                $shift_end = $arr_shift['shift_end'];
+                $shift_type = $arr_shift['shift_type'];
+                $shift_round_start = $arr_shift['shift_round_start'];
+                $shift_round_end = $arr_shift['shift_round_end'];
+                break;
+            case "in":
+            case "out":
+                // Get shift_id
+                $shift_id = $this->get_shift_id_by_time($reserve_data['reserve_time'], $reserve_data['reserve_trip']);
+                $arr_shift = $this->get_shift_data($shift_id);
+                if (!$arr_shift) {
+                    return false;
+                }
+                $shift_id = $arr_shift['shift_id'];
+                $shift_start = $arr_shift['shift_start'];
+                $shift_end = $arr_shift['shift_end'];
+                $shift_type = $arr_shift['shift_type'];
+                $shift_round_start = $arr_shift['shift_round_start'];
+                $shift_round_end = $arr_shift['shift_round_end'];
+                break;
+        }
+
+        //get cut of time data by reserve date
+        $close_time_end = '';
+        $close_time_start = '';
+        $arr_cut_of_time = $this->get_cut_of_time_data($curr_date_name, $ck_emp_plant, $shift_start, $shift_end);
+
+        //special case
+        //reserve in time report
+
+        $feature_set_item = get_feature_set_item($ck_emp_plant);
+
+        if ($feature_set_item == NULL)
+            return ['data' => "ng_cut_of_time"];
 
 
-        if ($count_days > 14) {
-            return ['data' => "ng_max_days"];
-        } else {
-            //current date and time
+        //check time reserve
+
+
+        for ($i = $begin; $i <= $end; $i = $i + 86400) {
+
+            //loop peroid of reserve by date
+            $reserve_date = date('Y-m-d', $i);
             $curr_date = date('Y-m-d');
-            $curr_time = date('H:i');
-            $curr_date_name = date("l");
-            //shift data
-            $shift_id = '';
-            $shift_start = '';
-            $shift_end = '';
-            //result
-            $arr_result = [];
+            $tomorrow = date('Y-m-d', strtotime('+1 day'));
+            $cal_weekday = $this->get_calendar_type($reserve_date, $emp_com_id, $ck_emp_plant);
+            $next_weekdate = $this->get_next_weekdate($curr_date, $emp_com_id, $ck_emp_plant);
 
-            //check data reserve status when GA approval is active
-            $this->chkFeature_ga_approval($ck_emp_plant);
-
-            //get time of shift data to save database
-            //trip in out => time (08:00, 17:00)
-            //two way => shift_id
-
-            switch ($reserve_data['reserve_trip']) {
-                case "in_out":
-                    // Get $shift start and end by shift id //reserve_data['reserve_time'] = shift_id
-                    $arr_shift = $this->get_shift_data($reserve_data['reserve_time']);
-                    if (!$arr_shift) {
-                        return [];
-                    }
-                    $shift_id = $arr_shift['shift_id'];
-                    $shift_start = $arr_shift['shift_start'];
-                    $shift_end = $arr_shift['shift_end'];
-                    $shift_type = $arr_shift['shift_type'];
-                    $shift_round_start = $arr_shift['shift_round_start'];
-                    $shift_round_end = $arr_shift['shift_round_end'];
-                    break;
-                case "in":
-                case "out":
-                    // Get shift_id
-                    $shift_id = $this->get_shift_id_by_time($reserve_data['reserve_time'], $reserve_data['reserve_trip']);
-                    $arr_shift = $this->get_shift_data($shift_id);
-                    if (!$arr_shift) {
-                        return [];
-                    }
-                    $shift_id = $arr_shift['shift_id'];
-                    $shift_start = $arr_shift['shift_start'];
-                    $shift_end = $arr_shift['shift_end'];
-                    $shift_type = $arr_shift['shift_type'];
-                    $shift_round_start = $arr_shift['shift_round_start'];
-                    $shift_round_end = $arr_shift['shift_round_end'];
-                    break;
+            if ($cal_weekday == "holiday") {
+                continue;
             }
 
-            //get cut of time data by reserve date
-            $close_time_end = '';
-            $close_time_start = '';
-            $arr_cut_of_time = $this->get_cut_of_time_data($curr_date_name, $ck_emp_plant);
-
-            //special case
-            //reserve in time report
-
-            $feature_set_item = get_feature_set_item($ck_emp_plant);
-
-            if ($feature_set_item == NULL)
-                return ['data' => "ng_cut_of_time"];
-
-            if ($feature_set_item['feature_set_item_time_to_close'] == "active") {
-
-                $close_time_reserve_end = '';
-                $close_time_reserve_start = '';
-
-                $arr_cut_of_time_reseve =  get_cut_of_time_reserve_data($reserve_data['reserve_trip'], $reserve_data['reserve_time']);
-                if ($arr_cut_of_time_reseve != NULL) {
-                    $close_time_reserve_end = $arr_cut_of_time_reseve['close_time_reserve_end'];
-                    $close_time_reserve_start = $arr_cut_of_time_reseve['close_time_reserve_start'];
-
-                    if ($curr_time >= $close_time_reserve_start && $curr_time <= $close_time_reserve_end) {
-                        return ['data' => "reserve_less_report"];
-                    }
-                }
+            if ($reserve_date < $curr_date) {
+                return ['data' => "reserve_less_than"];
             }
 
-            //check time reserve
+            if ($reserve_data['reserve_trip'] == "in") {
+                $time = $shift_start;
+            } else if ($reserve_data['reserve_trip'] == "out") {
+                $time = $shift_end;
+            } else if ($reserve_data['reserve_trip'] == "in_out") {
+                $time = $shift_start; // Assuming in_out uses the start time for the trip
+            }
+
+            //normal case
+            //let check condition to reserve
+            if ($reserve_date == $curr_date) {
+
+                if ($shift_start < $curr_time && ($reserve_data['reserve_trip'] == "in" || $reserve_data['reserve_trip'] == "in_out")) {
+
+                    return ['data' => "reserve_less_than"];
 
 
-            for ($i = $begin; $i <= $end; $i = $i + 86400) {
+                } else if ($shift_type == "day" && $shift_end < $curr_time && ($reserve_data['reserve_trip'] == "out")) {
 
-                //loop peroid of reserve by date
-                $reserve_date = date('Y-m-d', $i);
-                $tomorrow = date('Y-m-d', strtotime('+1 day'));
-                $cal_weekday = $this->get_calendar_type($reserve_date, $emp_com_id, $ck_emp_plant);
-
-                if ($cal_weekday == "holiday") {
-                    continue;
-                }
-
-                if ($reserve_date < $curr_date) {
                     return ['data' => "reserve_less_than"];
                 }
 
-                $time = $reserve_data['reserve_trip'] == "in" ? $shift_start : $shift_end;
+                //ลักไก่จอง 08:00
+                else if (($reserve_data['reserve_trip'] == "in" || $reserve_data['reserve_trip'] == "in_out") && $curr_time <= "08:00" && $time == "08:00") {
+                    return ['data' => "reserve_less_report"];
+                }
 
-                //normal case
-                //let check condition to reserve
-                if ($reserve_date == $curr_date) {
+                // check cut of time     
+                else if ($feature_set_item['feature_set_item_cut_off_time'] == 'active' && $this->check_cut_off_time($arr_cut_of_time, $curr_time)) {
 
-                    if ($shift_start < $curr_time && ($reserve_data['reserve_trip'] == "in" || $reserve_data['reserve_trip'] == "in_out")) {
+                    //after cut of time
+                    //save Waiting
 
-                        return ['data' => "reserve_less_than"];
+                    return ['data' => "reserve_less_report"];
 
+                } else {
 
-                    } else if ($shift_type == "day" && $shift_end < $curr_time && ($reserve_data['reserve_trip'] == "out")) {
-
-                        return ['data' => "reserve_less_than"];
-                    } else
-
-                        // Check cut off time
-                        if ($feature_set_item['feature_set_item_cut_off_time'] == 'active' && $this->check_cut_off_time($arr_cut_of_time, $curr_time)) {
-
-                            //after cut of time
-                            //save Waiting
-                            // $data_save = $this->do_reservation($reserve_date, $reserve_data, $emp_id, $emp_com_id, $shift_id, $shift_start, $shift_end, $shift_type, $this->save_status_waiting, $shift_round_start, $shift_round_end);
-                            // $arr_result[] = $data_save;
-
-                            return ['data' => "ng_cut_of_time"];
-
-                        } else {
-
-                            // Procress Submitted
-                            $data_save = $this->do_reservation($reserve_date, $reserve_data, $emp_id, $emp_com_id, $shift_id, $shift_start, $shift_end, $shift_type, $this->save_status_waiting, $shift_round_start, $shift_round_end);
-                            $arr_result[] = $data_save;
-
-                        }
-
-                } else if ($reserve_date == $tomorrow) {
-
-                    //Cut of time tomorrow Waiting
-                    if ($reserve_data['reserve_trip'] == "in" || $reserve_data['reserve_trip'] == "in_out") {
-                        //Cut of time tomorrow Waiting
-                        if ($feature_set_item['feature_set_item_cut_off_time'] == 'active' && $this->check_cut_off_time($arr_cut_of_time, $curr_time)) {
-
-                            return ['data' => "ng_cut_of_time"];
-
-                        } else {
-                            //Process Success
-                            $data_save = $this->do_reservation($reserve_date, $reserve_data, $emp_id, $emp_com_id, $shift_id, $shift_start, $shift_end, $shift_type, $this->save_status_waiting, $shift_round_start, $shift_round_end);
-                            $arr_result[] = $data_save;
-
-                        }
-                    } else {
-                        //Process Success
-                        $data_save = $this->do_reservation($reserve_date, $reserve_data, $emp_id, $emp_com_id, $shift_id, $shift_start, $shift_end, $shift_type, $this->save_status_waiting, $shift_round_start, $shift_round_end);
-                        $arr_result[] = $data_save;
-                    }
-
-
-
-                } else if ($reserve_date > $curr_date) {
+                    // Procress Submitted
                     $data_save = $this->do_reservation($reserve_date, $reserve_data, $emp_id, $emp_com_id, $shift_id, $shift_start, $shift_end, $shift_type, $this->save_status_waiting, $shift_round_start, $shift_round_end);
                     $arr_result[] = $data_save;
 
                 }
- 
-            }// loop forcast date
-            //return result
-            return ['data' => $arr_result];
-        }
+
+            } else if ($reserve_date == $tomorrow) {
+
+                if ($reserve_data['reserve_trip'] == "in" || $reserve_data['reserve_trip'] == "in_out") {
+                    //Cut of time tomorrow Waiting
+                    if ($feature_set_item['feature_set_item_cut_off_time'] == 'active' && $this->check_cut_off_time($arr_cut_of_time, $curr_time)) {
+
+                        return ['data' => "reserve_less_report"];
+
+                    } else {
+                        //Process Success
+                        $data_save = $this->do_reservation($reserve_date, $reserve_data, $emp_id, $emp_com_id, $shift_id, $shift_start, $shift_end, $shift_type, $this->save_status_waiting, $shift_round_start, $shift_round_end);
+                        $arr_result[] = $data_save;
+
+                    }
+                } else {
+                    //Process Success
+                    $data_save = $this->do_reservation($reserve_date, $reserve_data, $emp_id, $emp_com_id, $shift_id, $shift_start, $shift_end, $shift_type, $this->save_status_waiting, $shift_round_start, $shift_round_end);
+                    $arr_result[] = $data_save;
+                }
+
+            } else if ($reserve_date > $curr_date) {
+                // Need to edit
+                $day_no = date('N', strtotime($reserve_date));
+
+                // 1. check ว่า วันนี้เป็นวันหยุดหรือไม่ และจองวันทำงานถัดไป
+
+                if ($cal_weekday == "holiday" && ($reserve_data['reserve_trip'] == "in" || $reserve_data['reserve_trip'] == "in_out") && $reserve_date == $next_weekdate) {
+
+                    //check next week date
+                    if ($feature_set_item['feature_set_item_cut_off_time'] == 'active' && $this->check_cut_off_time($arr_cut_of_time, $curr_time) && date('N', strtotime($reserve_date)) == 1) {
+                        return ['data' => "reserve_less_report"];
+                    } else {
+                        //process success
+                        $data_save = $this->do_reservation($reserve_date, $reserve_data, $emp_id, $emp_com_id, $shift_id, $shift_start, $shift_end, $shift_type, $this->save_status_waiting, $shift_round_start, $shift_round_end);
+                        $arr_result[] = $data_save;
+                    }
+
+                    // 2. check ว่าเป็นวันทำงานหรือไม่ พรุ่งนี้วันหยุด และจองวันทำงานถัดไป
+                } else if ($cal_weekday == "weekday" && ($reserve_data['reserve_trip'] == "in" || $reserve_data['reserve_trip'] == "in_out") && $reserve_date == $next_weekdate && date('N', strtotime($reserve_date)) == 1) {
+                    //check next week date
+                    if ($feature_set_item['feature_set_item_cut_off_time'] == 'active' && $this->check_cut_off_time($arr_cut_of_time, $curr_time)) {
+                        return ['data' => "reserve_less_report"];
+                    } else {
+                        //process success
+                        $data_save = $this->do_reservation($reserve_date, $reserve_data, $emp_id, $emp_com_id, $shift_id, $shift_start, $shift_end, $shift_type, $this->save_status_waiting, $shift_round_start, $shift_round_end);
+                        $arr_result[] = $data_save;
+                    }
+
+                } else {
+
+                    //process success
+                    $data_save = $this->do_reservation($reserve_date, $reserve_data, $emp_id, $emp_com_id, $shift_id, $shift_start, $shift_end, $shift_type, $this->save_status_waiting, $shift_round_start, $shift_round_end);
+                    $arr_result[] = $data_save;
+
+                }
 
 
+
+
+            }
+
+        }// loop forcast date
+        //return result
+        return ['data' => $arr_result];
     }
-
+    
     public function get_calendar_type($date, $com_id, $emp_plant)
     {
         $arr_calendar = $this->db->get_where('calendar', ['calendar_com_id' => $com_id, 'calendar_date' => $date, 'calendar_plant_id' => $emp_plant])->row_array();
@@ -758,6 +771,33 @@ class Reserve_ad_model extends CI_Model
                 'message' => $e->getMessage() // แสดงข้อความ error เพื่อ debug
             ];
         }
+    }
+
+    public function get_reserve_setting()
+    {
+        $now = date("Y-m-d H:i:s");
+        $ck_emp_id = $this->session->userdata('emp_id');
+        $ck_emp_plant = $this->session->userdata('emp_plant');
+        $ck_emp_com = $this->session->userdata('emp_com_id');
+        $this->db->select('
+            id,
+            close_reserve_setting_com_id,
+            close_reserve_setting_plant_id,
+            close_reserve_setting_start,
+            close_reserve_setting_end,
+            close_reserve_setting_disabled_date,
+            close_reserve_setting_status,
+            close_reserve_setting_note,
+            close_reserve_setting_active_module
+        ');
+        $this->db->from('close_reserve_setting');
+        $this->db->where('close_reserve_setting_com_id', $ck_emp_com);
+        $this->db->where('close_reserve_setting_plant_id', $ck_emp_plant);
+        $this->db->where('close_reserve_setting_status', 'active');
+        $this->db->where("'" . $now . "' > close_reserve_setting_disabled_date");
+        $query = $this->db->get();
+
+        return $query->result_array();
     }
 
 }

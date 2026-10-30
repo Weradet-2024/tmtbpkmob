@@ -80,6 +80,22 @@ class Reserve_info_model extends CI_Model
 
         return null; // If no reserve data is found
     }
+
+    private function check_cut_off_time($arr_cut_of_time, $curr_time)
+    {
+
+        if (!empty($arr_cut_of_time) && is_array($arr_cut_of_time)) {
+            foreach ($arr_cut_of_time as $cut_of_time) {
+                if (isset($cut_of_time['close_time_start'], $cut_of_time['close_time_end'])) {
+                    if ($curr_time >= $cut_of_time['close_time_start'] && $curr_time <= $cut_of_time['close_time_end']) {
+                        return true; // อยู่ในช่วงเวลา
+                    }
+                }
+            }
+        }
+        return false; // ไม่อยู่ในช่วงเวลา
+    }
+
     public function get_route($reserve_id, $reserve_shift, $ck_emp_com_id, $emp_plant)
     {
         // Get reserve data
@@ -92,7 +108,7 @@ class Reserve_info_model extends CI_Model
             $reserve_data = $query_reserve->row();  // ดึงแถวเดียว
             $reserve_trip = $reserve_data->reserve_trip;
             // $reserve_route_zone = $reserve_data->reserve_route_zone;
-			$reserve_route_zone = $reserve_data->reserve_route;
+            $reserve_route_zone = $reserve_data->reserve_route;
 
             if ($reserve_trip == "in") {
                 // Get reserve route
@@ -227,7 +243,7 @@ class Reserve_info_model extends CI_Model
         $arr_routes = [];
         foreach ($query_route->result() as $rs1) {
             $arr_routes[] = [
-                'route_id'   => $reserve_trip == "in" ? $rs1->route_id : $rs1->route_out_id,
+                'route_id' => $reserve_trip == "in" ? $rs1->route_id : $rs1->route_out_id,
                 'route_code' => $reserve_trip == "in" ? $rs1->route_code : $rs1->route_out_code,
                 'route_name' => $reserve_trip == "in" ? $rs1->route_name : $rs1->route_out_name,
             ];
@@ -254,10 +270,10 @@ class Reserve_info_model extends CI_Model
         // รวมผลลัพธ์ทั้งหมด
         // -------------------------------
         return [
-            'emp_route_id'      => $emp_data->emp_route_id,
-            'emp_route_out_id'  => $emp_data->emp_route_out_id,
-            'route'             => $arr_routes,
-            'shift_data'        => $arr_shift
+            'emp_route_id' => $emp_data->emp_route_id,
+            'emp_route_out_id' => $emp_data->emp_route_out_id,
+            'route' => $arr_routes,
+            'shift_data' => $arr_shift
         ];
     }
 
@@ -304,22 +320,16 @@ class Reserve_info_model extends CI_Model
         $chk_curr_date = date("l");
         $cur_date_time = date('Y-m-d H:i:s');
         $route_vendor_id = '';
-        $close_time_start = '';
-        $close_time_end = '';
-        $time_reserve = $reserve_round;
-        //declare close time start
-        $close_time_start = '';
-        $close_time_end = '';
-        $arr_cut_of_time = get_cut_of_time_data($chk_curr_date, $ck_emp_com_id);
-        // ตรวจสอบข้อมูล cut-off time
-        if (!empty($arr_cut_of_time) && isset($arr_cut_of_time['close_time_start'], $arr_cut_of_time['close_time_end'])) {
-            $close_time_start = $arr_cut_of_time['close_time_start'];
-            $close_time_end = $arr_cut_of_time['close_time_end'];
-        }
 
+        $time_reserve = $reserve_round;
+
+        $tomorrow = date('Y-m-d', strtotime('+1 day'));
+
+        $arr_cut_of_time = get_cut_of_time_data($chk_curr_date, $ck_emp_plant);
         //get shift data
         $shift_data = $reserve_trip == 'in' ? $this->db->get_where('shift', ['shift_start' => $time_reserve])->result() : $this->db->get_where('shift', ['shift_end' => $time_reserve])->result();
 
+        // Get the shift round based on the trip type
         $round_shift = !empty($shift_data) ? $reserve_trip == 'in' ? $shift_data[0]->shift_round_start : $shift_data[0]->shift_round_end : '';
 
         //check weekdate
@@ -337,11 +347,6 @@ class Reserve_info_model extends CI_Model
             : [];
 
 
-        //define global variable status
-        $gb_status_reserve = "Waiting";
-
-
-
         //specail case
 
         //normal case
@@ -353,51 +358,23 @@ class Reserve_info_model extends CI_Model
 
             return "reserve_less_than";
 
-        } else if ($reserve_date > $curr_date) {
+        } else if ($reserve_date == $tomorrow) {
 
-            if (!empty($data_weekday) && isset($data_weekday["calendar_type"]) && $data_weekday["calendar_type"] == "weekday") {
-
-                //cut of time
-                if ($curr_time >= $close_time_start && $curr_time <= $close_time_end) {
-                    // Check for duplicate reservations
-                    if ($this->check_duplicate_reserve($reserve_date, $reserve_trip, $ck_emp_id, $reserve_id)) {
-                        return "data_dup";
-                    }
-
-                    // Determine reservation status
-                    $status_reserve = $gb_status_reserve;
-
-                    // Update reservation
-                    $this->update_reservation($reserve_id, $ck_emp_id, $ck_emp_com_id, $reserve_date, $reserve_trip, $reserve_round, $reserve_route, $reserve_point, $curr_date, $curr_time, $status_reserve, $round_shift);
-
-                    $this->insert_transaction_reserve($reserve_id, $reserve_date, $reserve_round, $reserve_trip, $reserve_route, $reserve_point, $status_reserve, $ck_emp_id, $curr_date);
-
-                    return $status_reserve;
-
-                } else {
-                    // Check for duplicate reservations outside close time window
-                    if ($this->check_duplicate_reserve($reserve_date, $reserve_trip, $ck_emp_id, $reserve_id)) {
-                        return "data_dup";
-                    }
-
-                    // Update reservation with "Submitted" status
-                    $this->update_reservation($reserve_id, $ck_emp_id, $ck_emp_com_id, $reserve_date, $reserve_trip, $reserve_round, $reserve_route, $reserve_point, $curr_date, $curr_time, $gb_status_reserve, $round_shift);
-
-                    $this->insert_transaction_reserve($reserve_id, $reserve_date, $reserve_round, $reserve_trip, $reserve_route, $reserve_point, $gb_status_reserve, $ck_emp_id, $curr_date);
-
-                    return $gb_status_reserve;
-
-                }// check cut of time
-
-            } else {
-                // holiday
+            if ($reserve_trip == "in" && $this->check_cut_off_time($arr_cut_of_time, $curr_time)) {
 
                 if ($this->check_duplicate_reserve($reserve_date, $reserve_trip, $ck_emp_id, $reserve_id)) {
                     return "data_dup";
                 }
 
-                // Determine reservation status
-                $status_reserve = $gb_status_reserve;
+                // Update reservation with "Waiting" status
+                return "ng_cut_of_time";
+
+            } else {
+                $status_reserve = "Submitted";
+
+                if ($this->check_duplicate_reserve($reserve_date, $reserve_trip, $ck_emp_id, $reserve_id)) {
+                    return "data_dup";
+                }
 
                 // Update reservation
                 $this->update_reservation($reserve_id, $ck_emp_id, $ck_emp_com_id, $reserve_date, $reserve_trip, $reserve_round, $reserve_route, $reserve_point, $curr_date, $curr_time, $status_reserve, $round_shift);
@@ -408,6 +385,124 @@ class Reserve_info_model extends CI_Model
 
             }
 
+
+        } else if ($reserve_date > $curr_date) {
+
+
+            //1. // 1. check ว่า วันนี้เป็นวันหยุดหรือไม่ และจองวันทำงานถัดไป
+            if (isset($data_weekday["calendar_type"]) && $data_weekday["calendar_type"] == "weekday" && $reserve_date == $data_next_weekday['calendar_date']) {
+
+                if (date('N', strtotime($reserve_date)) == 1 && $reserve_trip == "in") {
+                    if ($this->check_cut_off_time($arr_cut_of_time, $curr_time)) {
+
+                        return "ng_cut_of_time";
+
+
+                    } else {
+                        // Check for duplicate reservations outside close time window
+                        if ($this->check_duplicate_reserve($reserve_date, $reserve_trip, $ck_emp_id, $reserve_id)) {
+                            return "data_dup";
+                        }
+
+                        $gb_status_reserve = "Submitted";
+
+                        // Update reservation with "Submitted" status
+                        $this->update_reservation($reserve_id, $ck_emp_id, $ck_emp_com_id, $reserve_date, $reserve_trip, $reserve_round, $reserve_route, $reserve_point, $curr_date, $curr_time, $gb_status_reserve, $round_shift);
+
+                        $this->insert_transaction_reserve($reserve_id, $reserve_date, $reserve_round, $reserve_trip, $reserve_route, $reserve_point, $gb_status_reserve, $ck_emp_id, $curr_date);
+
+                        return $gb_status_reserve;
+
+                    }// check cut of time
+                } else {
+                    // Check for duplicate reservations outside close time window
+                    if ($this->check_duplicate_reserve($reserve_date, $reserve_trip, $ck_emp_id, $reserve_id)) {
+                        return "data_dup";
+                    }
+
+                    $gb_status_reserve = "";
+
+                    // Update reservation with "Submitted" status
+                    $this->update_reservation($reserve_id, $ck_emp_id, $ck_emp_com_id, $reserve_date, $reserve_trip, $reserve_round, $reserve_route, $reserve_point, $curr_date, $curr_time, $gb_status_reserve, $round_shift);
+
+                    $this->insert_transaction_reserve($reserve_id, $reserve_date, $reserve_round, $reserve_trip, $reserve_route, $reserve_point, $gb_status_reserve, $ck_emp_id, $curr_date);
+
+                    return $gb_status_reserve;
+                }
+
+            }
+
+            //วันหยุด จองวันจันทร์
+            if (isset($data_weekday["calendar_type"]) && $data_weekday["calendar_type"] == "holiday" && $reserve_date == $data_next_weekday['calendar_date']) {
+
+                if (date('N', strtotime($reserve_date)) == 1 && $reserve_trip == "in") {
+                    if ($this->check_cut_off_time($arr_cut_of_time, $curr_time)) {
+
+                        return "ng_cut_of_time";
+
+
+                    } else {
+                        // Check for duplicate reservations outside close time window
+                        if ($this->check_duplicate_reserve($reserve_date, $reserve_trip, $ck_emp_id, $reserve_id)) {
+                            return "data_dup";
+                        }
+
+                        $gb_status_reserve = "Submitted";
+
+                        // Update reservation with "Submitted" status
+                        $this->update_reservation($reserve_id, $ck_emp_id, $ck_emp_com_id, $reserve_date, $reserve_trip, $reserve_round, $reserve_route, $reserve_point, $curr_date, $curr_time, $gb_status_reserve, $round_shift);
+
+                        $this->insert_transaction_reserve($reserve_id, $reserve_date, $reserve_round, $reserve_trip, $reserve_route, $reserve_point, $gb_status_reserve, $ck_emp_id, $curr_date);
+
+                        return $gb_status_reserve;
+
+                    }// check cut of time
+                } else {
+                    // Check for duplicate reservations outside close time window
+                    if ($this->check_duplicate_reserve($reserve_date, $reserve_trip, $ck_emp_id, $reserve_id)) {
+                        return "data_dup";
+                    }
+
+                    $gb_status_reserve = "Submitted";
+
+                    // Update reservation with "Submitted" status
+                    $this->update_reservation($reserve_id, $ck_emp_id, $ck_emp_com_id, $reserve_date, $reserve_trip, $reserve_round, $reserve_route, $reserve_point, $curr_date, $curr_time, $gb_status_reserve, $round_shift);
+
+                    $this->insert_transaction_reserve($reserve_id, $reserve_date, $reserve_round, $reserve_trip, $reserve_route, $reserve_point, $gb_status_reserve, $ck_emp_id, $curr_date);
+
+                    return $gb_status_reserve;
+                }
+
+            } else {
+
+                //Normal Case
+
+                // Check for duplicate reservations outside close time window
+                if ($this->check_duplicate_reserve($reserve_date, $reserve_trip, $ck_emp_id, $reserve_id)) {
+                    return "data_dup";
+                }
+
+                $gb_status_reserve = "Submitted";
+
+                // Update reservation with "Submitted" status
+                $this->update_reservation($reserve_id, $ck_emp_id, $ck_emp_com_id, $reserve_date, $reserve_trip, $reserve_round, $reserve_route, $reserve_point, $curr_date, $curr_time, $gb_status_reserve, $round_shift);
+
+                $this->insert_transaction_reserve($reserve_id, $reserve_date, $reserve_round, $reserve_trip, $reserve_route, $reserve_point, $gb_status_reserve, $ck_emp_id, $curr_date);
+
+                return $gb_status_reserve;
+
+            }
+
+            //วันนี้เป็นศุกร์ วันที่แก้คือวันจันทร์
+
+
+            //วันนี้คือ วันเสาร์ อาทิตย์ แก้ วันจันทร์
+
+            // $day_no = date('N', strtotime($reserve_date));
+            // if ($day_no == 6 || $day_no == 7) {
+            //     $reserve_date = $this->get_next_monday($reserve_date);
+            // }
+
         } else if ($reserve_date == $curr_date) {
 
             if (!empty($data_weekday) && isset($data_weekday["calendar_type"]) && $data_weekday["calendar_type"] == "weekday") {
@@ -416,17 +511,14 @@ class Reserve_info_model extends CI_Model
 
                     return "reserve_less_than";
 
-                } else if ($curr_time >= $close_time_start && $curr_time <= $close_time_end) {
+                } else if ($this->check_cut_off_time($arr_cut_of_time, $curr_time)) {
 
-                    if ($this->check_duplicate_reserve($reserve_date, $reserve_trip, $ck_emp_id, $reserve_id)) {
-                        return "data_dup";
-                    }
+                    // Update reservation with "Waiting" status
+                    return "ng_cut_of_time";
 
-                    $status_reserve = "Waiting";
-                    // Update reservation
-                    $this->update_reservation($reserve_id, $ck_emp_id, $ck_emp_com_id, $reserve_date, $reserve_trip, $reserve_round, $reserve_route, $reserve_point, $curr_date, $curr_time, $status_reserve, $round_shift);
+                } else if (($reserve_trip == "in" || $reserve_trip == "in_out") && $reserve_round == "07:30") {
 
-                    return $status_reserve;
+                    return "ng_cut_of_time";
 
                 } else {
                     // Check for duplicate reservations outside close time window
@@ -435,31 +527,44 @@ class Reserve_info_model extends CI_Model
                     }
 
                     // Update reservation with "Submitted" status
-                    $this->update_reservation($reserve_id, $ck_emp_id, $ck_emp_com_id, $reserve_date, $reserve_trip, $reserve_round, $reserve_route, $reserve_point, $curr_date, $curr_time, "Waiting", $round_shift);
+                    $this->update_reservation($reserve_id, $ck_emp_id, $ck_emp_com_id, $reserve_date, $reserve_trip, $reserve_round, $reserve_route, $reserve_point, $curr_date, $curr_time, "Submitted", $round_shift);
 
-                    $this->insert_transaction_reserve($reserve_id, $reserve_date, $reserve_round, $reserve_trip, $reserve_route, $reserve_point, "Waiting", $ck_emp_id, $curr_date);
+                    $this->insert_transaction_reserve($reserve_id, $reserve_date, $reserve_round, $reserve_trip, $reserve_route, $reserve_point, "Submitted", $ck_emp_id, $curr_date);
 
-                    return "Waiting";
+                    return "Submitted";
                 }
 
             } else {
-                //holiday type
+
                 if ($this->check_duplicate_reserve($reserve_date, $reserve_trip, $ck_emp_id, $reserve_id)) {
                     return "data_dup";
+                } else if ($this->check_cut_off_time($arr_cut_of_time, $curr_time)) {
+
+                    if ($this->check_duplicate_reserve($reserve_date, $reserve_trip, $ck_emp_id, $reserve_id)) {
+                        return "data_dup";
+                    }
+
+                    // Update reservation with "Waiting" status
+                    return "ng_cut_of_time";
+
+                } else {
+
+                    // Determine reservation status
+                    $status_reserve = $this->get_reserve_status($reserve_date, $reserve_trip, $time_reserve, $data_next_weekday, $trip_out_night_shift);
+
+                    // Update reservation
+                    $this->update_reservation($reserve_id, $ck_emp_id, $ck_emp_com_id, $reserve_date, $reserve_trip, $reserve_round, $reserve_route, $reserve_point, $curr_date, $curr_time, $status_reserve, $round_shift);
+
+                    $this->insert_transaction_reserve($reserve_id, $reserve_date, $reserve_round, $reserve_trip, $reserve_route, $reserve_point, "Submitted", $ck_emp_id, $curr_date);
+
+                    return $status_reserve;
+
                 }
-
-                // Determine reservation status
-                $status_reserve = $this->get_reserve_status($reserve_date, $reserve_trip, $time_reserve, $data_next_weekday, $trip_out_night_shift);
-
-                // Update reservation
-                $this->update_reservation($reserve_id, $ck_emp_id, $ck_emp_com_id, $reserve_date, $reserve_trip, $reserve_round, $reserve_route, $reserve_point, $curr_date, $curr_time, $status_reserve, $round_shift);
-
-                $this->insert_transaction_reserve($reserve_id, $reserve_date, $reserve_round, $reserve_trip, $reserve_route, $reserve_point, "Waiting", $ck_emp_id, $curr_date);
-
-                return $status_reserve;
 
             }
 
+        } else {
+            return "Submitted";
         }
 
     }// function
@@ -506,23 +611,23 @@ class Reserve_info_model extends CI_Model
             $close_time_end = $arr_cut_of_time['close_time_end'];
         }
 
-       if ($curr_time >= $close_time_start && $curr_time <= $close_time_end) {
+        if ($curr_time >= $close_time_start && $curr_time <= $close_time_end) {
             //normal case
 
-            //$this->cancel_reservation($reserve_id, $ck_emp_id, $ck_emp_com_id, $reserve_date, $reserve_trip, $reserve_round, $reserve_route, $reserve_point, $curr_date, $curr_time, "Cancelled");
+            $this->cancel_reservation($reserve_id, $ck_emp_id, $ck_emp_com_id, $reserve_date, $reserve_trip, $reserve_round, $reserve_route, $reserve_point, $curr_date, $curr_time, "Cancelled");
 
             // Natthanicha comment cut off time open free 19/06/25
-            //$this->insert_transaction_reserve($reserve_id, $reserve_date, $reserve_round, $reserve_trip, $reserve_route, $reserve_point, "Cancelled", $ck_emp_id, $curr_date);
+            $this->insert_transaction_reserve($reserve_id, $reserve_date, $reserve_round, $reserve_trip, $reserve_route, $reserve_point, "Cancelled", $ck_emp_id, $curr_date);
 
-            return "Pending_cancel";
-         } else {
-               $this->cancel_reservation($reserve_id, $ck_emp_id, $ck_emp_com_id, $reserve_date, $reserve_trip, $reserve_round, $reserve_route, $reserve_point, $curr_date, $curr_time, "Pending_cancel");
+            return "Cancelled";
+        } else {
+            $this->cancel_reservation($reserve_id, $ck_emp_id, $ck_emp_com_id, $reserve_date, $reserve_trip, $reserve_round, $reserve_route, $reserve_point, $curr_date, $curr_time, "Cancelled");
 
-             // Natthanicha comment cut off time open free 19/06/25
-             $this->insert_transaction_reserve($reserve_id, $reserve_date, $reserve_round, $reserve_trip, $reserve_route, $reserve_point, "Pending_cancel", $ck_emp_id, $curr_date);
+            // Natthanicha comment cut off time open free 19/06/25
+            $this->insert_transaction_reserve($reserve_id, $reserve_date, $reserve_round, $reserve_trip, $reserve_route, $reserve_point, "Cancelled", $ck_emp_id, $curr_date);
 
-             return "Cancelled";
-         }
+            return "Cancelled";
+        }
 
 
 

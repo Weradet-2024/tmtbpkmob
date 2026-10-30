@@ -11,7 +11,7 @@ $v = date("His");
   <meta name="viewport"
     content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0" />
 
-  <title>(SW) TOGETAMOVE</title>
+  <title>(BPK) TOGETAMOVE</title>
   <!-- Favicon -->
   <link rel="manifest" href="<?php echo base_url('manifest.json'); ?>">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -107,18 +107,16 @@ $v = date("His");
                 <!-- 2 column grid layout with text inputs for the first and last names -->
                 <div class="row">
 
-                  <!-- Email input -->
-                  <div class="mb-3">
-                    <label for="defaultFormControlInput" class="form-label">Username</label>
-                    <input type="text" class="form-control" id="username" placeholder="Employee Code"
+                 <div class="mb-3">
+                    <label for="defaultFormControlInput" class="form-label">รหัสพนักงาน/Employee ID</label>
+                    <input type="text" class="form-control" id="username" placeholder="Enter your Employee ID"
                       aria-describedby="defaultFormControlHelp" />
-                    <div id="defaultFormControlHelp" class="form-text">We'll never share your details with anyone
-                      else.</div>
+                    
                   </div>
 
-                  <!-- Password input -->
+                    <!-- Password input -->
                   <div class="form-outline mb-4 position-relative">
-                    <label for="password" class="form-label">Password</label>
+                    <label for="password" class="form-label">รหัสผ่าน/Password</label>
                     <div class="input-group">
                       <input type="password" id="password" class="form-control" placeholder="Enter your password" />
                       <span class="input-group-text toggle-password" style="cursor: pointer;">
@@ -127,11 +125,12 @@ $v = date("His");
                     </div>
                   </div>
 
-                  <!-- Checkbox -->
+
+                    <!-- Checkbox -->
                   <div class="form-check d-flex justify-content-center mb-4">
                     <input class="form-check-input me-2" type="checkbox" value="" id="remember" checked />
                     <label class="form-check-label" for="form2Example33">
-                      Remember Me
+                      จดจำฉัน/Remember me
                     </label>
                   </div>
 
@@ -143,7 +142,7 @@ $v = date("His");
 
                   <!-- Forgot password link -->
                   <div class="text-center">
-                    <a href="#" id="forgotPasswordLink" onclick="forgotPassword()">forgot password?</a>
+                    <a href="#" id="forgotPasswordLink" onclick="forgotPassword()">ลืมรหัสผ่าน/forgot password?</a>
                   </div>
 
 

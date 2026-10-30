@@ -23,7 +23,7 @@ if (empty($_COOKIE["ck_emp_lang"])) {
     <meta name="viewport"
         content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0" />
 
-    <title>(SW) TOGETAMOVE</title>
+    <title>(TMT-BPK) TOGETAMOVE</title>
     <!-- Favicon -->
     <link rel="icon" type="" href="../assets/img/favicon/logo_togetamove.png" />
     <link rel="manifest" href="<?php echo base_url('manifest.json'); ?>">

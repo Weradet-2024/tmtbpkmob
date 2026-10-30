@@ -43,36 +43,48 @@ function getRound(reserve_id) {
 		url: "Reserve_info/get_round",
 		data: { reserve_id: reserve_id },
 		success: function (response) {
-			json_data = JSON.parse(response);
-			var ck_lang = getCookie("ck_emp_lang");
+			let json_data = JSON.parse(response);
+			let ck_lang = getCookie("ck_emp_lang");
 
-			var html_code = "";
+			let html_code = "";
 
+			// default option
 			if (ck_lang == "th") {
 				html_code += '<option value="">---เลือก---</option>';
 			} else {
 				html_code += '<option value="">---Select---</option>';
 			}
 
-			if (json_data.shift.length > 0 && json_data.shift != null) {
-				arr_shift = json_data.shift;
+			// ❗ ถ้าไม่มีเวลา
+			if (!json_data.shift || json_data.shift.length === 0) {
+				html_code +=
+					'<option value="" disabled selected>' +
+					(ck_lang == "th"
+						? "ไม่มีเวลาเปิดขณะนี้"
+						: "No available time at the moment") +
+					"</option>";
 
-				for (i = 0; i < arr_shift.length; i++) {
-					if (json_data.reserve_time == arr_shift[i]) {
-						html_code +=
-							'<option value = "' +
-							arr_shift[i] +
-							'" selected>' +
-							arr_shift[i] +
-							"</option>";
-					} else {
-						html_code +=
-							'<option value = "' +
-							arr_shift[i] +
-							'">' +
-							arr_shift[i] +
-							"</option>";
-					}
+				$("#reserve_round").html(html_code);
+				return;
+			}
+
+			// มีเวลา → loop ตามปกติ
+			let arr_shift = json_data.shift;
+			for (let i = 0; i < arr_shift.length; i++) {
+				if (json_data.reserve_time == arr_shift[i]) {
+					html_code +=
+						'<option value="' +
+						arr_shift[i] +
+						'" selected>' +
+						arr_shift[i] +
+						"</option>";
+				} else {
+					html_code +=
+						'<option value="' +
+						arr_shift[i] +
+						'">' +
+						arr_shift[i] +
+						"</option>";
 				}
 			}
 
@@ -80,6 +92,7 @@ function getRound(reserve_id) {
 		},
 	});
 }
+
 
 function getRoute(reserve_id, reserve_shift) {
 	$.ajax({
@@ -537,7 +550,7 @@ function chkVal() {
 				reserve_point: reserve_point,
 			},
 			success: function (response) {
-				console.log(response);
+				//console.log(response);
 				try {
 					json_data = JSON.parse(response);
 
@@ -585,7 +598,32 @@ function chkVal() {
 								//position: 'top-right',
 							});
 						}
-					} else if (json_data.data == "trip_dupplicate") {
+					}
+						
+						else if (json_data.data == "ng_cut_of_time") {
+						if (ck_emp_lang == "th") {
+							Swal.fire({
+								title: "Warning",
+								text: "ไม่สามารถทำรายการได้เนื่องจากใกล้เวลารถออก กรุณาตรวจสอบรอบรถและเวลารถออก", //Sarawuth Updated on 20/06/2025
+								icon: "warning",
+								timer: 3000,
+								timerProgressBar: true,
+								showConfirmButton: false,
+								//position: 'top-right',
+							});
+						} else {
+							Swal.fire({
+								title: "Warning",
+								text: "Unable to make reservation near departure time", //Sarawuth Updated on 20/06/2025
+								icon: "warning",
+								timer: 4000,
+								timerProgressBar: true,
+								showConfirmButton: false,
+								//position: 'top-right',
+							});
+						}
+					} 
+					else if (json_data.data == "trip_dupplicate") {
 						if (ck_emp_lang == "th") {
 							Swal.fire({
 								title: "Warning",

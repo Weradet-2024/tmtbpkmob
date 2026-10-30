@@ -591,11 +591,11 @@ function chkVal() {
 					if (ck_lang == "th") {
 						Swal.fire(
 							"Warning",
-							"วันดังกล่าวเป็นวันหยุดของบริษัท โปรดทำรายการจองรถวันหยุด",
+							"วันดังกล่าวเป็นวันทำงานของบริษัท โปรดทำรายการจองรถวันทำงาน",
 							"warning"
 						);
 					} else {
-						Swal.fire("Warning", "The said day is a company holiday. Please make a holiday car reservation.", "warning");
+						Swal.fire("Warning", "The said day is a company weekday. Please make a weekday car reservation.", "warning");
 					}
 				}else if (obj.data == "ng_cut_of_time") {
 					if (ck_lang == "th") {

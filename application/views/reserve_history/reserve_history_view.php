@@ -1,6 +1,121 @@
 <br>
 <br>
 <br>
+
+<style>
+    /* ===== Modern Table Style ===== */
+
+    .table-modern {
+        border-radius: 12px;
+        overflow: hidden;
+        font-size: 13px;
+    }
+
+    /* Header */
+    .table-modern thead th {
+        background: #f8f9fa;
+        font-weight: 600;
+        border-bottom: 2px solid #dee2e6;
+        white-space: nowrap;
+    }
+
+    /* Row hover */
+    .table-modern tbody tr:hover {
+        background: #f5faff;
+        transition: 0.2s;
+    }
+
+    /* Checkbox ใหญ่ขึ้น
+    .table-modern input[type="checkbox"] {
+        transform: scale(1.3);
+        cursor: pointer;
+    } */
+
+    /* ===== ขยายช่องวันที่ ===== */
+
+    #tbHistory th:nth-child(2),
+    #tbHistory td:nth-child(2) {
+        min-width: 60px;
+        /* ⭐ ขยายช่องวันที่ */
+        white-space: nowrap;
+        /* ⭐ ห้ามขึ้นบรรทัดใหม่ */
+    }
+
+       #tbHistory th:nth-child(1),
+    #tbHistory td:nth-child(1) {
+        max-width: 20px;
+    }
+
+/* ===== MOBILE FIRST ===== */
+
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* ทำให้อ้วนขึ้น */
+#tbHistory input[type="checkbox"] {
+    transform: scale(1.5);   /* ปรับความอ้วน */
+    cursor: pointer;
+}
+
+/* จัดให้อยู่กลาง cell */
+#tbHistory td:first-child,
+#tbHistory th:first-child {
+    text-align: center;
+    vertical-align: middle;
+}
+
+
+/* ลด padding ให้เล็กลงบนมือถือ */
+@media (max-width: 768px) {
+
+    #tbHistory th,
+    #tbHistory td {
+        padding: 6px 8px !important;
+        font-size: 12px;
+        white-space: nowrap; /* กันแตกบรรทัด */
+    }
+
+    /* ทำ checkbox เล็กลง */
+    #tbHistory input[type="checkbox"] {
+        transform: scale(0.9);
+    }
+
+    /* จำกัดความกว้าง column */
+    #tbHistory th:nth-child(1),
+    #tbHistory td:nth-child(1) {
+        width: 40px;
+    }
+
+    #tbHistory th:nth-child(2),
+    #tbHistory td:nth-child(2) {
+        min-width: 80px;
+    }
+
+    #tbHistory th:nth-child(3),
+    #tbHistory td:nth-child(3) {
+        min-width: 30px;
+    }
+
+    #tbHistory th:nth-child(4),
+    #tbHistory td:nth-child(4) {
+        min-width: 30px;
+    }
+
+    #tbHistory th:nth-child(5),
+    #tbHistory td:nth-child(5) {
+        min-width: 90px;
+    }
+
+    #tbHistory th:nth-child(6),
+    #tbHistory td:nth-child(6) {
+        min-width: 60px;
+    }
+
+}
+
+</style>
 <div class="container" style="margin-top:50px;">
     <div class="row align-items-top">
         <div class="col-12 hero-text-image">
@@ -35,7 +150,7 @@
                                 <option value="Waiting"><?= $this->lang->line('Waiting_Confirm'); ?></option>
                                 <!-- <option value="Pending_cancel"><?= $this->lang->line('pending_cancel'); ?></option> -->
                                 <option value="Cancelled"><?= $this->lang->line('cancel'); ?></option>
-								<!-- <option value="Denied"><?= $this->lang->line('denied'); ?></option>  -->
+                                <!-- <option value="Denied"><?= $this->lang->line('denied'); ?></option>  -->
                             </select>
                         </div>
                         <hr>
@@ -51,18 +166,18 @@
                             <input name="chk_type" id="chk_type" type="hidden" value="cancelSelect" />
                             <input name='hdnMaxLine' id='hdnMaxLine' type='hidden' value='' />
                             <div class="table-responsive">
-                                <table id='tbHistory' class='table table-striped table-hover' style='font-size:12px;'>
+                                <table id='tbHistory' class='table table-striped table-hover table-modern'>
                                     <thead>
                                         <tr>
-                                            <th style='width:5%;'><input name='chk_all' id='chk_all' type='checkbox' onchange="chkAll();" /></th>
-                                            <th style='width:45%;'><?= $this->lang->line('date'); ?></th>
-                                            <th style='width:15%;'><?= $this->lang->line('time'); ?></th>
-                                            <th style='width:10%; text-align:center;'><?= $this->lang->line('trip_header'); ?></th>
-                                            <th style='width:10%;'><?= $this->lang->line('status'); ?></th>
-                                            <th style='width:10%;'><?= $this->lang->line('scan'); ?></th>
+                                            <th><input id='chk_all' type='checkbox' onchange="chkAll();" /></th>
+                                            <th><?= $this->lang->line('date'); ?></th>
+                                            <th><?= $this->lang->line('time'); ?></th>
+                                            <th class="text-center"><?= $this->lang->line('trip_header'); ?></th>
+                                            <th><?= $this->lang->line('status'); ?></th>
+                                            <th><?= $this->lang->line('scan'); ?></th>
                                         </tr>
                                     </thead>
-                                    <tbody>
+
 
                                     </tbody>
                                 </table>

@@ -109,14 +109,7 @@
 
                     <?php } ?>
 
-                    <?php if (count($menu) % 2 != 0) { ?>
-                        <div class="card">
-                            <a href="#">
-                                <i class="fa fa-commenting-o"></i>
-                                <h5 class="card-title">Coming Soon</h5>
-                            </a>
-                        </div>
-                    <?php } ?>
+                  
                 </div>
             </div>
 

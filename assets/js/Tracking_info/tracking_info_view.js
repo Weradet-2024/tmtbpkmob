@@ -433,7 +433,7 @@ function getLocation(
 					//มีการจองแล้วรถเข้าขุดแล้ว
 					//is_reserve = sessionStorage.getItem("reserve");
 
-					console.log(is_reserve);
+					//console.log(is_reserve);
 
 
 					var lang = getCookie("ck_emp_lang");
@@ -461,39 +461,6 @@ function getLocation(
 
 var pre_time = null;
 var pre_dis = null;
-
-function longdoMapRouting(flon, flat, tlon, tlat) {
-    $.ajax({
-        url: "https://api.longdo.com/RouteService/json/route/guide?",
-        dataType: "jsonp",
-        type: "GET",
-        contentType: "application/json",
-        data: {
-            key: "e516b73dc9f6e987181a591230bbe207", // ใช้ Key ของตัวเอง
-            flon: parseFloat(flon),
-            flat: parseFloat(flat),
-            tlon: parseFloat(tlon),
-            tlat: parseFloat(tlat),
-        },
-        success: function (results) {
-            console.log(results);
-            // คำนวณระยะทาง
-            var distance_km = results["data"][0]["distance"] / 1000;
-            var distance_time = results["data"][0]["interval"] / 60;
-            var new_distance_km = distance_km.toFixed(2);
-            var new_distance_time = distance_time.toFixed(2);
-
-            document.getElementById("get_distance_km").innerHTML = new_distance_km;
-            document.getElementById("get_distance_time").innerHTML = formatMinutes(new_distance_time);
-
-			calculated_distance(flon, flat, tlon, tlat);
-
-        },
-        error: function (xhr) {
-            console.error("Error fetching route:", xhr);
-        }
-    });
-}
 
 function parseTimeToDate(timeStr) {
     let today = new Date().toISOString().split("T")[0]; // เอาวันที่ปัจจุบัน (YYYY-MM-DD)

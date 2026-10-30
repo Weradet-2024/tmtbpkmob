@@ -156,9 +156,9 @@ class Home_model extends CI_Model
                     $diff_seconds = abs($time_latest - $time_earliest);
                 }
 
-                if ($diff_seconds < 60) {
-                    continue;
-                }
+                // if ($diff_seconds < 10) {
+                //     continue;
+                // }
 
                 // คำนวณความต่างของเวลา
                 $time1 = strtotime($curr_time);
@@ -166,7 +166,7 @@ class Home_model extends CI_Model
                 $time_diff = ($time1 - $time2) / 60;
 
                 // ตรวจสอบสถานะการโพสต์
-                $tracking_post_status = ($time_diff >= 30) ? 'success' : 'go';
+                $tracking_post_status = ($time_diff >= 500) ? 'success' : 'go';
                 $tracking_id = $data_latest->tracking_id;
             }
 

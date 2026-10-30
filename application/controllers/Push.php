@@ -215,7 +215,7 @@ class Push extends CI_Controller
                     "data" => [  // ใช้เฉพาะ data (ไม่ใช้ notification)
                         "title" => $title,
                         "body" => $body,
-                        "link" => "https://tmtswmob.tttpdx.com/index.php/main/index/fcm",
+                        "link" => "https://tmtbpkmob.tttpdx.com/index.php/main/index/fcm",
                         "message_id" => $message_id
                     ]
                 ]
@@ -271,7 +271,7 @@ class Push extends CI_Controller
                         "data" => [  // ใช้เฉพาะ data (ไม่ใช้ notification)
                             "title" => "การแจ้งเตือนใหม่",
                             "body" => "มีการจองสำเร็จแล้ว ตรวจสอบข้อมูลการจัดรถ",
-                            "link" => "https://tmtsrmob.tttpdx.com/index.php/main/index/fcm",
+                            "link" => "https://tmtbpkmob.tttpdx.com/index.php/main/index/fcm",
                             "message_id" => $message_id
                         ]
                     ]
@@ -327,11 +327,11 @@ class Push extends CI_Controller
                 throw new Exception('No valid FCM tokens found.');
             }
 
-            // ตัดความยาวข้อความ
             $boardcast_body_plain = strip_tags($boardcast_body);
-            $max_length = 10;
-            if (strlen($boardcast_body_plain) > $max_length) {
-                $boardcast_body_plain = substr($boardcast_body_plain, 0, $max_length) . '...';
+
+            $max_length = 50;
+            if (mb_strlen($boardcast_body_plain, 'UTF-8') > $max_length) {
+                $boardcast_body_plain = mb_substr($boardcast_body_plain, 0, $max_length, 'UTF-8') . '...';
             }
 
             $responses = [];
@@ -344,8 +344,8 @@ class Push extends CI_Controller
                         "token" => $token,
                         "data" => [  // ใช้เฉพาะ data (ไม่ใช้ notification)
                             "title" => $boardcast_title,
-                            "body" => "ตรวจสอบข้อมูล",
-                            "link" => "https://tmtsrmob.tttpdx.com/index.php/main/index/fcm",
+                            "body" => $boardcast_body_plain,
+                            "link" => "https://tmtbpkmob.tttpdx.com/index.php/main/gotoNotification/fcm",
                             "message_id" => $message_id
                         ]
                     ]
@@ -361,7 +361,7 @@ class Push extends CI_Controller
                     $responses[] = ['error' => $ex->getMessage(), 'token' => $token];
                 }
             }
-            
+
             $output = json_encode([
                 'success' => true,
                 'all_data' => $all_data,
@@ -422,7 +422,7 @@ class Push extends CI_Controller
                         "data" => [  // ใช้เฉพาะ data (ไม่ใช้ notification)
                             "title" => 'Approve Your Reservation',
                             "body" => "ตรวจสอบข้อมูล",
-                            "link" => "https://tmtsrmob.tttpdx.com/",
+                            "link" => "https://tmtbpkmob.tttpdx.com/",
                             "message_id" => $message_id
                         ]
                     ]
@@ -469,7 +469,8 @@ class Push extends CI_Controller
         }
     }
 
-    public function get_all_broadcast() {
+    public function get_all_broadcast()
+    {
         $data = $this->fcm_token_model->get_all_broadcast();
         echo json_encode($data);
     }
@@ -477,178 +478,178 @@ class Push extends CI_Controller
     public function send_broadcast_now()
     {
 
-    try {
-        $broadcasts = $this->fcm_token_model->get_broadcasts_to_notify();
+        try {
+            $broadcasts = $this->fcm_token_model->get_broadcasts_to_notify();
 
 
-        if (empty($broadcasts)) {
+            if (empty($broadcasts)) {
+                return $this->output
+                    ->set_content_type('application/json')
+                    ->set_output(json_encode([
+                        'success' => false,
+                        'message' => 'No broadcast to notify at this time.'
+                    ]));
+            }
+
+            $accessToken = $this->getAccessToken();
+            $all_responses = [];
+
+            foreach ($broadcasts as $broadcast) {
+                $broadcast_id = $broadcast['broadcast_id'];
+                $broadcast_title = $broadcast['broadcast_title'];
+                $broadcast_detail = $broadcast['broadcast_detail'];
+
+                // ดึง fcm_token ของพนักงานที่อยู่ใน plant เดียวกัน
+                $tokens_data = $this->fcm_token_model->get_fcm_token_by_boardcast_id($broadcast_id);
+
+                if (empty($tokens_data)) {
+                    continue;
+                }
+
+                // ดึง token จริง และลบ token ซ้ำ
+                $tokens = array_unique(array_filter(array_column($tokens_data, 'fcm_token')));
+                $responses = [];
+
+                foreach ($tokens as $token) {
+                    $message_id = uniqid();
+
+                    $data = [
+                        "message" => [
+                            "token" => $token,
+                            "data" => [
+                                "title" => strip_tags($broadcast_title),
+                                "body" => "ตรวจสอบข้อมูล",
+                                "link" => "https://tmtbpkmob.tttpdx.com/index.php/main/index/fcm",
+                                "message_id" => $message_id
+                            ]
+                        ]
+                    ];
+
+                    try {
+                        $response = $this->sendFCM($data, $accessToken);
+                        $responses[] = $response;
+                    } catch (Exception $e) {
+                        $responses[] = [
+                            'error' => $e->getMessage(),
+                            'token' => $token
+                        ];
+                    }
+                }
+
+                // อัปเดตเวลาส่งล่าสุด
+                $this->fcm_token_model->update_latest_noti_date($broadcast_id);
+
+                $all_responses[] = [
+                    'broadcast_id' => $broadcast_id,
+                    'tokens_sent' => count($tokens),
+                    'responses' => $responses
+                ];
+            }
+
+            return $this->output
+                ->set_content_type('application/json')
+                ->set_output(json_encode([
+                    'success' => true,
+                    'result' => $all_responses
+                ]));
+
+        } catch (Exception $e) {
             return $this->output
                 ->set_content_type('application/json')
                 ->set_output(json_encode([
                     'success' => false,
-                    'message' => 'No broadcast to notify at this time.'
+                    'error' => $e->getMessage()
                 ]));
         }
-
-        $accessToken = $this->getAccessToken();
-        $all_responses = [];
-
-        foreach ($broadcasts as $broadcast) {
-            $broadcast_id = $broadcast['broadcast_id'];
-            $broadcast_title = $broadcast['broadcast_title'];
-            $broadcast_detail = $broadcast['broadcast_detail'];
-
-            // ดึง fcm_token ของพนักงานที่อยู่ใน plant เดียวกัน
-            $tokens_data = $this->fcm_token_model->get_fcm_token_by_boardcast_id($broadcast_id);
-
-            if (empty($tokens_data)) {
-                continue;
-            }
-
-            // ดึง token จริง และลบ token ซ้ำ
-            $tokens = array_unique(array_filter(array_column($tokens_data, 'fcm_token')));
-            $responses = [];
-
-            foreach ($tokens as $token) {
-                $message_id = uniqid();
-
-                $data = [
-                    "message" => [
-                        "token" => $token,
-                        "data" => [
-                            "title" => strip_tags($broadcast_title),
-                            "body" => "ตรวจสอบข้อมูล",
-                            "link" => "https://tmtsrmob.tttpdx.com/index.php/main/index/fcm",
-                            "message_id" => $message_id
-                        ]
-                    ]
-                ];
-
-                try {
-                    $response = $this->sendFCM($data, $accessToken);
-                    $responses[] = $response;
-                } catch (Exception $e) {
-                    $responses[] = [
-                        'error' => $e->getMessage(),
-                        'token' => $token
-                    ];
-                }
-            }
-
-            // อัปเดตเวลาส่งล่าสุด
-            $this->fcm_token_model->update_latest_noti_date($broadcast_id);
-
-            $all_responses[] = [
-                'broadcast_id' => $broadcast_id,
-                'tokens_sent' => count($tokens),
-                'responses' => $responses
-            ];
-        }
-
-        return $this->output
-            ->set_content_type('application/json')
-            ->set_output(json_encode([
-                'success' => true,
-                'result' => $all_responses
-            ]));
-
-    } catch (Exception $e) {
-        return $this->output
-            ->set_content_type('application/json')
-            ->set_output(json_encode([
-                'success' => false,
-                'error' => $e->getMessage()
-            ]));
-    }
     }
 
     public function send_all_broadcast_now()
     {
 
         try {
-        // ดึง broadcast ทั้งหมด
-        $broadcasts = $this->fcm_token_model->get_all_broadcast();
+            // ดึง broadcast ทั้งหมด
+            $broadcasts = $this->fcm_token_model->get_all_broadcast();
 
-        if (empty($broadcasts)) {
+            if (empty($broadcasts)) {
+                return $this->output
+                    ->set_content_type('application/json')
+                    ->set_output(json_encode([
+                        'success' => false,
+                        'message' => 'No broadcasts found.'
+                    ]));
+            }
+
+            $accessToken = $this->getAccessToken();
+            $all_responses = [];
+
+            foreach ($broadcasts as $broadcast) {
+                $broadcast_id = $broadcast['broadcast_id'];
+                $broadcast_title = strip_tags($broadcast['broadcast_title']);
+                $broadcast_detail = strip_tags($broadcast['broadcast_detail']);
+
+                // ดึง fcm_token ตาม plant (ตามที่คุณเขียนไว้ใน fcm_token_model)
+                $tokens_data = $this->fcm_token_model->get_fcm_token_by_boardcast_id($broadcast_id);
+                $tokens = array_unique(array_filter(array_column($tokens_data, 'fcm_token')));
+
+                if (empty($tokens)) {
+                    $all_responses[] = [
+                        'broadcast_id' => $broadcast_id,
+                        'message' => 'No tokens found for this broadcast.'
+                    ];
+                    continue;
+                }
+
+                $responses = [];
+
+                foreach ($tokens as $token) {
+                    $message_id = uniqid();
+
+                    $data = [
+                        "message" => [
+                            "token" => $token,
+                            "data" => [
+                                "title" => $broadcast_title,
+                                "body" => "",
+                                "link" => "https://tmtbpkmob.tttpdx.com/index.php/main/index/fcm",
+                                "message_id" => $message_id
+                            ]
+                        ]
+                    ];
+
+                    try {
+                        $response = $this->sendFCM($data, $accessToken);
+                        $responses[] = $response;
+                    } catch (Exception $ex) {
+                        $responses[] = [
+                            'error' => $ex->getMessage(),
+                            'token' => $token
+                        ];
+                    }
+                }
+
+                // อัปเดตเวลาส่งล่าสุด
+                $this->fcm_token_model->update_latest_noti_date($broadcast_id);
+
+                $all_responses[] = [
+                    'broadcast_id' => $broadcast_id,
+                    'tokens_sent' => count($tokens),
+                    'responses' => $responses
+                ];
+            }
+
+            return $this->output
+                ->set_content_type('application/json')
+                ->set_output(json_encode([
+                    'success' => true,
+                    'result' => $all_responses
+                ]));
+
+        } catch (Exception $e) {
             return $this->output
                 ->set_content_type('application/json')
                 ->set_output(json_encode([
                     'success' => false,
-                    'message' => 'No broadcasts found.'
-                ]));
-        }
-
-        $accessToken = $this->getAccessToken();
-        $all_responses = [];
-
-        foreach ($broadcasts as $broadcast) {
-            $broadcast_id = $broadcast['broadcast_id'];
-            $broadcast_title = strip_tags($broadcast['broadcast_title']);
-            $broadcast_detail = strip_tags($broadcast['broadcast_detail']);
-
-            // ดึง fcm_token ตาม plant (ตามที่คุณเขียนไว้ใน fcm_token_model)
-            $tokens_data = $this->fcm_token_model->get_fcm_token_by_boardcast_id($broadcast_id);
-            $tokens = array_unique(array_filter(array_column($tokens_data, 'fcm_token')));
-
-            if (empty($tokens)) {
-                $all_responses[] = [
-                    'broadcast_id' => $broadcast_id,
-                    'message' => 'No tokens found for this broadcast.'
-                ];
-                continue;
-            }
-
-            $responses = [];
-
-            foreach ($tokens as $token) {
-                $message_id = uniqid();
-
-                $data = [
-                    "message" => [
-                        "token" => $token,
-                        "data" => [
-                            "title" => $broadcast_title,
-                            "body" => "ตรวจสอบข้อมูล",
-                            "link" => "https://tmtsrmob.tttpdx.com/index.php/main/index/fcm",
-                            "message_id" => $message_id
-                        ]
-                    ]
-                ];
-
-                try {
-                    $response = $this->sendFCM($data, $accessToken);
-                    $responses[] = $response;
-                } catch (Exception $ex) {
-                    $responses[] = [
-                        'error' => $ex->getMessage(),
-                        'token' => $token
-                    ];
-                }
-            }
-
-            // อัปเดตเวลาส่งล่าสุด
-            $this->fcm_token_model->update_latest_noti_date($broadcast_id);
-
-            $all_responses[] = [
-                'broadcast_id' => $broadcast_id,
-                'tokens_sent' => count($tokens),
-                'responses' => $responses
-            ];
-        }
-
-        return $this->output
-            ->set_content_type('application/json')
-            ->set_output(json_encode([
-                'success' => true,
-                'result' => $all_responses
-            ]));
-
-        } catch (Exception $e) {
-                return $this->output
-                ->set_content_type('application/json')
-                ->set_output(json_encode([
-                'success' => false,
-                'error' => $e->getMessage()
+                    'error' => $e->getMessage()
                 ]));
         }
     }
@@ -662,77 +663,77 @@ class Push extends CI_Controller
 
     public function notify_cron()
     {
-    date_default_timezone_set('Asia/Bangkok');
-    try {
-        $now = date("H:i");
-        $today = date("Y-m-d");
-        $dayName = strtolower(date("l"));
+        date_default_timezone_set('Asia/Bangkok');
+        try {
+            $now = date("H:i");
+            $today = date("Y-m-d");
+            $dayName = strtolower(date("l"));
 
-        $broadcasts = $this->fcm_token_model->get_all_broadcast();
-        $accessToken = $this->getAccessToken();
-        $sent = [];
+            $broadcasts = $this->fcm_token_model->get_all_broadcast();
+            $accessToken = $this->getAccessToken();
+            $sent = [];
 
-        foreach ($broadcasts as $bc) {
-            $shouldSend = false;
+            foreach ($broadcasts as $bc) {
+                $shouldSend = false;
 
-            if ($bc['broadcast_type'] === 'once') {
-                if (
-                    $bc['broadcast_start_date'] === $today &&
-                    $this->isTimeWithinMargin('12:00') &&
-                    empty($bc['broadcast_lastest_noti']) 
-                ) {
-                    $shouldSend = true;
-                }
-            } elseif ($bc['broadcast_type'] === 'once_per_day') {
-                if ($this->isTimeWithinMargin($bc['broadcast_daily_time'])) {
-                    $shouldSend = true;
-                }
-            } elseif ($bc['broadcast_type'] === 'weekly') {
-                if ($bc['broadcast_weekly_day'] === $dayName && $this->isTimeWithinMargin($bc['broadcast_daily_time'])) {
-                    $shouldSend = true;
-                }
-            }
-
-            if ($shouldSend) {
-                $tokenData = $this->fcm_token_model->get_fcm_token_by_boardcast_id($bc['broadcast_id']);
-                $tokens = array_unique(array_filter(array_column($tokenData, 'fcm_token')));
-
-                foreach ($tokens as $token) {
-                    $message_id = uniqid();
-                    $link = $bc['broadcast_is_reminder'] == 1
-                        ? "https://tmtsrmob.tttpdx.com/index.php/main/gotoReserve/fcm"
-                        : "https://tmtsrmob.tttpdx.com/index.php/main/gotoNotification/fcm";
-
-                    $data = [
-                        "message" => [
-                            "token" => $token,
-                            "data" => [
-                                "title" => $bc['broadcast_title'],
-                                "body" => strip_tags($bc['broadcast_detail']),
-                                "link" => $link,
-                                "message_id" => $message_id
-                            ]
-                        ]
-                    ];
-
-                    try {
-                        $this->sendFCM($data, $accessToken);
-                    } catch (Exception $ex) {
-                        log_message('error', 'FCM Error: ' . $ex->getMessage());
+                if ($bc['broadcast_type'] === 'once') {
+                    if (
+                        $bc['broadcast_start_date'] === $today &&
+                        $this->isTimeWithinMargin('12:00') &&
+                        empty($bc['broadcast_lastest_noti'])
+                    ) {
+                        $shouldSend = true;
+                    }
+                } elseif ($bc['broadcast_type'] === 'once_per_day') {
+                    if ($this->isTimeWithinMargin($bc['broadcast_daily_time'])) {
+                        $shouldSend = true;
+                    }
+                } elseif ($bc['broadcast_type'] === 'weekly') {
+                    if ($bc['broadcast_weekly_day'] === $dayName && $this->isTimeWithinMargin($bc['broadcast_daily_time'])) {
+                        $shouldSend = true;
                     }
                 }
 
-                $this->fcm_token_model->update_latest_noti_date($bc['broadcast_id']);
-                $sent[] = $bc['broadcast_id'];
-                log_message('debug', 'Sending broadcast ID: ' . $bc['broadcast_id']);
+                if ($shouldSend) {
+                    $tokenData = $this->fcm_token_model->get_fcm_token_by_boardcast_id($bc['broadcast_id']);
+                    $tokens = array_unique(array_filter(array_column($tokenData, 'fcm_token')));
+
+                    foreach ($tokens as $token) {
+                        $message_id = uniqid();
+                        $link = $bc['broadcast_is_reminder'] == 1
+                            ? "https://tmtbpkmob.tttpdx.com/index.php/main/gotoReserve/fcm"
+                            : "https://tmtbpkmob.tttpdx.com/index.php/main/gotoNotification/fcm";
+
+                        $data = [
+                            "message" => [
+                                "token" => $token,
+                                "data" => [
+                                    "title" => $bc['broadcast_title'],
+                                    "body" => strip_tags($bc['broadcast_detail']),
+                                    "link" => $link,
+                                    "message_id" => $message_id
+                                ]
+                            ]
+                        ];
+
+                        try {
+                            $this->sendFCM($data, $accessToken);
+                        } catch (Exception $ex) {
+                            log_message('error', 'FCM Error: ' . $ex->getMessage());
+                        }
+                    }
+
+                    $this->fcm_token_model->update_latest_noti_date($bc['broadcast_id']);
+                    $sent[] = $bc['broadcast_id'];
+                    log_message('debug', 'Sending broadcast ID: ' . $bc['broadcast_id']);
+                }
             }
+
+            echo json_encode(['success' => true, 'dayName' => $dayName, 'time' => $now, 'sent' => $sent]);
+
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
         }
-
-        echo json_encode(['success' => true, 'dayName' => $dayName, 'time' => $now, 'sent' => $sent]);
-
-    } catch (Exception $e) {
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
-    }
     }
 
 }
